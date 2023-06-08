@@ -1762,6 +1762,7 @@
           "Newtonsoft.Json": "[13.0.2, )",
           "Npgsql": "[7.0.4, )",
           "System.Runtime.Caching": "[5.0.0, )",
+          "System.Threading.Channels": "[7.0.0, )",
           "morelinq": "[3.3.2, )",
           "xunit": "[2.4.2, )"
         }
@@ -1926,6 +1927,12 @@
         "dependencies": {
           "System.Configuration.ConfigurationManager": "5.0.0"
         }
+      },
+      "System.Threading.Channels": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "qmeeYNROMsONF6ndEZcIQ+VxR4Q/TX/7uIVLJqtwIWL7dDWeh0l1UIqgo4wYyjG//5lUNhwkLDSFl+pAWO6oiA=="
       },
       "xunit": {
         "type": "CentralTransitive",

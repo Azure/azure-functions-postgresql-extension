@@ -4,24 +4,23 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Npgsql;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
-    /// <typeparam name="T">A user-defined POCO that represents a row of the user's table</typeparam>
-    internal class PostgreSqlAsyncCollector<T> : IAsyncCollector<T>, IDisposable
+    internal class PostgreSqlAsyncCollector : IAsyncCollector<string>, IDisposable
     {
-        private readonly IConfiguration _configuration;
+        private readonly PostgreSqlBindingContext _context;
         private readonly PostgreSqlAttribute _attribute;
         private readonly ILogger _logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PostgreSqlAsyncCollector{T}"/> class.
+        /// Initializes a new instance of the <see cref="PostgreSqlAsyncCollector"/> class.
         /// </summary>
-        /// <param name="configuration">
-        /// Contains the function's configuration properties
+        /// <param name="context">
+        /// Contains the resolved PostgreSql binding context
         /// </param>
         /// <param name="attribute">
         /// Contains as one of its attributes the PostgreSQL table that rows will be inserted into
@@ -32,14 +31,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <exception cref="ArgumentNullException">
         /// Thrown if either configuration or attribute is null
         /// </exception>
-        public PostgreSqlAsyncCollector(IConfiguration configuration, PostgreSqlAttribute attribute, ILogger logger)
+        public PostgreSqlAsyncCollector(PostgreSqlBindingContext context, PostgreSqlAttribute attribute, ILogger logger)
         {
             Console.WriteLine("AsyncCollector Constructor");
-            this._configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            this._context = context ?? throw new ArgumentNullException(nameof(context));
             this._attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
             this._logger = logger;
 
-            using (NpgsqlConnection connection = BuildConnection(attribute.ConnectionStringSetting, configuration))
+
+            Console.WriteLine("AsyncCollector Constructor: " + this._attribute.ConnectionStringSetting);
+
+            using (NpgsqlConnection connection = this._context.Connection)
             {
                 connection.OpenAsync().GetAwaiter().GetResult();
                 // check if conncetion is open
@@ -52,31 +54,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             }
         }
 
-        public static NpgsqlConnection BuildConnection(string connectionStringSetting, IConfiguration configuration)
-        {
-            return new NpgsqlConnection(GetConnectionString(connectionStringSetting, configuration));
-        }
-
-        public static string GetConnectionString(string connectionStringSetting, IConfiguration configuration)
-        {
-            if (string.IsNullOrEmpty(connectionStringSetting))
-            {
-                throw new ArgumentException("Must specify ConnectionStringSetting, which should refer to the name of an app setting that " +
-                    "contains a PostgreSQL connection string");
-            }
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-            string connectionString = configuration.GetConnectionStringOrSetting(connectionStringSetting);
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new ArgumentException(connectionString == null ? $"ConnectionStringSetting '{connectionStringSetting}' is missing in your function app settings, please add the setting with a valid PostgreSQL connection string." :
-                $"ConnectionStringSetting '{connectionStringSetting}' is empty in your function app settings, please update the setting with a valid PostgreSQL connection string.");
-            }
-            return connectionString;
-        }
-
         /// <summary>
         /// Adds an item to this collector that is processed in a batch along with all other items added via
         /// AddAsync when <see cref="FlushAsync"/> is called. Each item is interpreted as a row to be added to the SQL table
@@ -85,9 +62,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <param name="item"> The item to add to the collector </param>
         /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
         /// <returns> A CompletedTask if executed successfully </returns>
-        public async Task AddAsync(T item, CancellationToken cancellationToken = default)
+        public async Task AddAsync(string item, CancellationToken cancellationToken = default)
         {
-            //unimplemented
+            Console.WriteLine("AsyncCollector AddAsync: " + item);
             await Task.Delay(0);
         }
 
@@ -99,7 +76,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         public async Task FlushAsync(CancellationToken cancellationToken = default)
         {
 
-            using (NpgsqlConnection connection = BuildConnection(_attribute.ConnectionStringSetting, _configuration))
+            Console.WriteLine("AsyncCollector FlushAsync");
+
+            using (NpgsqlConnection connection = this.CreateConnection())
             {
                 connection.OpenAsync().GetAwaiter().GetResult();
                 // check if conncetion is open
@@ -110,12 +89,26 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
                 using (NpgsqlCommand command = connection.CreateCommand())
                 {
-                    Console.WriteLine($"Executing command: {command.CommandText}");
-                    command.CommandText = $"SELECT 1;";
-                    int res = await command.ExecuteNonQueryAsync();
-                    Console.WriteLine($"Result: {res} rows affected");
+                    // Console.WriteLine($"Executing command: {command.CommandText}");
+                    // command.CommandText = $"select * from inventory;";
+                    await using (var cmd = new NpgsqlCommand("select * from inventory", connection))
+                    await using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            Console.WriteLine(reader.GetString(1));
+                        }
+                    }
                 }
             }
+
+            await Task.Delay(0);
+        }
+
+        private NpgsqlConnection CreateConnection()
+        {
+            string connectionString = this._attribute.ConnectionStringSetting;
+            return new NpgsqlConnection(connectionString);
         }
         public void Dispose()
         {
