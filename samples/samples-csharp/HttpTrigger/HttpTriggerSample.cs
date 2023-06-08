@@ -24,15 +24,11 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("dbo.inventory", "ConnectionString")] IAsyncCollector<string> collector)
+            [PostgreSql("dbo.inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
         {
             Console.WriteLine("HttpTriggerSample Start");
 
-            Fruit kiwi = new Fruit
-            {
-                Name = "Kiwi",
-                Quantity = "100"
-            };
+            Fruit kiwi = new Fruit("kiwi", "green");
 
             await collector.AddAsync(kiwi);
 
@@ -51,11 +47,19 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
-        public string Name { get; set; }
+        public Fruit(string name, string color)
+        {
+            this.name = name;
+            this.color = color;
+        }
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public string name { get; set; }
 
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
-        public string Quantity { get; set; }
+        public string color { get; set; }
     }
 }

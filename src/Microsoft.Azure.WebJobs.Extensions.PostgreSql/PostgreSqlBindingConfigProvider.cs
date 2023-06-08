@@ -11,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.WebJobs.Logging;
 using Npgsql;
+using Microsoft.Azure.WebJobs.Host.Bindings;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -51,7 +53,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             ILogger logger = this._loggerFactory.CreateLogger(LogCategories.Bindings);
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            inputOutputRule.BindToCollector<string>(attr => new PostgreSqlAsyncCollector(CreateContext(attr), attr, logger));
+
+
+            inputOutputRule.BindToCollector<PGSQLObjectOpenType>(attr => new PostgreSqlAsyncCollector<PGSQLObjectOpenType>(CreateContext(attr), attr, logger));
+            inputOutputRule.BindToInput<OpenType>(typeof(PGSqlGenericsConverter<>), this._configuration, logger);
+
 
         }
 
@@ -78,6 +84,32 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             Console.WriteLine($"Using connectionStringSetting: {connectionStringSetting}");
 
             return new NpgsqlConnection(connectionStringSetting);
+        }
+    }
+
+    /// <summary>
+    /// Wrapper around OpenType to receive data correctly from output bindings (not as byte[])
+    /// This can be used for general "T --> JObject" bindings.
+    /// The exact definition here comes from the WebJobs v1.0 Queue binding.
+    /// refer https://github.com/Azure/azure-webjobs-sdk/blob/dev/src/Microsoft.Azure.WebJobs.Host/Bindings/OpenType.cs#L390
+    /// </summary>
+    internal class PGSQLObjectOpenType : OpenType.Poco
+    {
+        // return true when type is an "System.Object" to enable Object binding.
+        public override bool IsMatch(Type type, OpenTypeMatchContext context)
+        {
+            if (type.IsGenericType
+                && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return false;
+            }
+
+            if (type.FullName == "System.Object")
+            {
+                return true;
+            }
+
+            return base.IsMatch(type, context);
         }
     }
 }

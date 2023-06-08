@@ -10,14 +10,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
-    internal class PostgreSqlAsyncCollector : IAsyncCollector<string>, IDisposable
+    internal class PostgreSqlAsyncCollector<T> : IAsyncCollector<T>, IDisposable
     {
         private readonly PostgreSqlBindingContext _context;
         private readonly PostgreSqlAttribute _attribute;
         private readonly ILogger _logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PostgreSqlAsyncCollector"/> class.
+        /// Initializes a new instance of the PostgreSqlAsyncCollector class.
         /// </summary>
         /// <param name="context">
         /// Contains the resolved PostgreSql binding context
@@ -62,22 +62,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <param name="item"> The item to add to the collector </param>
         /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
         /// <returns> A CompletedTask if executed successfully </returns>
-        public async Task AddAsync(string item, CancellationToken cancellationToken = default)
+        public async Task AddAsync(T item, CancellationToken cancellationToken = default)
         {
+            // Here we can add the item in strait away
             Console.WriteLine("AsyncCollector AddAsync: " + item);
-            await Task.Delay(0);
-        }
-
-        /// <summary>
-        /// </summary>
-        /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
-        /// <returns> A CompletedTask if executed successfully. If no rows were added, this is returned
-        /// automatically. </returns>
-        public async Task FlushAsync(CancellationToken cancellationToken = default)
-        {
-
-            Console.WriteLine("AsyncCollector FlushAsync");
-
             using (NpgsqlConnection connection = this.CreateConnection())
             {
                 connection.OpenAsync().GetAwaiter().GetResult();
@@ -89,18 +77,47 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
                 using (NpgsqlCommand command = connection.CreateCommand())
                 {
-                    // Console.WriteLine($"Executing command: {command.CommandText}");
-                    // command.CommandText = $"select * from inventory;";
-                    await using (var cmd = new NpgsqlCommand("select * from inventory", connection))
-                    await using (var reader = await cmd.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            Console.WriteLine(reader.GetString(1));
-                        }
-                    }
+                    string commandText = generateSQLCommand(item);
+                    command.CommandText = commandText;
+                    await command.ExecuteNonQueryAsync();
                 }
             }
+        }
+
+        private string generateSQLCommand(T item)
+        {
+            // convert T into a POCO
+            // get the properties of the POCO
+            // generate the SQL command
+            // return the SQL command
+
+            // get the properties of the POCO
+            var properties = typeof(T).GetProperties();
+
+            // generate the SQL command
+            string sqlCommand = "INSERT INTO " + "inventory" + " (";
+            string sqlCommandValues = "VALUES (";
+            foreach (var property in properties)
+            {
+                sqlCommand += property.Name + ", ";
+                sqlCommandValues += "@" + property.Name + ", ";
+            }
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// </summary>
+        /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
+        /// <returns> A CompletedTask if executed successfully. If no rows were added, this is returned
+        /// automatically. </returns>
+        public async Task FlushAsync(CancellationToken cancellationToken = default)
+        {
+
+            // dont care about this for now
+
+            Console.WriteLine("AsyncCollector FlushAsync");
+
+
 
             await Task.Delay(0);
         }
