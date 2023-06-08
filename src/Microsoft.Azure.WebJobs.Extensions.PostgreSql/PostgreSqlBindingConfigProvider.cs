@@ -2,17 +2,15 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Channels;
 using Microsoft.Azure.WebJobs.Description;
-using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.WebJobs.Logging;
-using System.Reflection;
-using System.Diagnostics;
-using Newtonsoft.Json;
-using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
+using Npgsql;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -53,15 +51,33 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             ILogger logger = this._loggerFactory.CreateLogger(LogCategories.Bindings);
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            // inputOutputRule.BindToInput<string>(new PostgreSqlBindingConverter(this));
+            inputOutputRule.BindToCollector<string>(attr => new PostgreSqlAsyncCollector(CreateContext(attr), attr, logger));
 
-            // BindingRule<PostgreSqlAttribute> inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            // var converter = new PostgreSqlConverter(this._configuration);
-            // inputOutputRule.BindToInput(converter);
-            // inputOutputRule.BindToInput<string>(typeof(PostgreSqlGenericsConverter<string>), this._configuration, logger);
-            inputOutputRule.BindToCollector<OpenType.Poco>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
-            // inputOutputRule.BindToInput<OpenType>(typeof(PostgreSqlGenericsConverter<>), this._configuration, logger);
+        }
 
+        internal PostgreSqlBindingContext CreateContext(PostgreSqlAttribute attribute)
+        {
+
+            NpgsqlConnection connection = GetService(attribute.ConnectionStringSetting);
+
+
+            return new PostgreSqlBindingContext
+            {
+                Connection = connection,
+                ResolvedAttribute = attribute,
+            };
+        }
+
+        private NpgsqlConnection GetService(string connectionStringSetting)
+        {
+            if (string.IsNullOrEmpty(connectionStringSetting))
+            {
+                throw new InvalidOperationException("The PostgreSql connection string must be set either via a connection string named 'PostgreSql' in the connectionStrings section of the config file or via a PostgreSqlAttribute.");
+            }
+
+            Console.WriteLine($"Using connectionStringSetting: {connectionStringSetting}");
+
+            return new NpgsqlConnection(connectionStringSetting);
         }
     }
 }

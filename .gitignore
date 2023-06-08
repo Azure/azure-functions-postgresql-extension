@@ -369,3 +369,5 @@ target/
 
 # Local nupkg files
 local-packages/
+TestPGConnection.session.sql
+.vscode/settings.json

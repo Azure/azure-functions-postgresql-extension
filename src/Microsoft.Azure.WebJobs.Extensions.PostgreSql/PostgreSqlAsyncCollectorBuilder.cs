@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
-    internal class PostgreSqlAsyncCollectorBuilder<T> : IConverter<PostgreSqlAttribute, IAsyncCollector<T>>
+    internal class PostgreSqlAsyncCollectorBuilder : IConverter<PostgreSqlAttribute, IAsyncCollector<string>>
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger _logger;
@@ -18,9 +18,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             this._logger = logger;
         }
 
-        IAsyncCollector<T> IConverter<PostgreSqlAttribute, IAsyncCollector<T>>.Convert(PostgreSqlAttribute attribute)
+        IAsyncCollector<string> IConverter<PostgreSqlAttribute, IAsyncCollector<string>>.Convert(PostgreSqlAttribute attribute)
         {
-            return new PostgreSqlAsyncCollector<T>(this._configuration, attribute, this._logger);
+            // return new PostgreSqlAsyncCollector(this._configuration, attribute, this._logger);
+            throw new System.NotImplementedException();
         }
     }
 }

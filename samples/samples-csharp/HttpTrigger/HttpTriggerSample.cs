@@ -24,7 +24,7 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("SELECT 1;", "ConnectionString")] string result)
+            [PostgreSql("SELECT 1;", "ConnectionString")] IAsyncCollector<string> collector)
         {
 
             Console.WriteLine("HttpTriggerSample Start");
@@ -41,7 +41,8 @@ namespace WebJobs.Extensions.PostgreSql.Samples
                 : $"Hello, {name}. This HTTP triggered function executed successfully.";
 
 
-            Console.WriteLine(result);
+            await collector.AddAsync("SELECT 1;");
+            // await collector.FlushAsync();
 
             Console.WriteLine("HttpTriggerSample END");
 
