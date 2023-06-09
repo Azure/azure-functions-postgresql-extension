@@ -28,7 +28,7 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         {
             Console.WriteLine("HttpTriggerSample Start");
 
-            Fruit kiwi = new Fruit("kiwi", "green");
+            Fruit kiwi = new Fruit("kiwi", "green", 100);
 
             await collector.AddAsync(kiwi);
 
@@ -47,10 +47,11 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
-        public Fruit(string name, string color)
+        public Fruit(string name, string color, int quantity = 1)
         {
             this.name = name;
             this.color = color;
+            this.quantity = quantity;
         }
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
@@ -61,5 +62,10 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
         public string color { get; set; }
+
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public int quantity { get; set; }
     }
 }

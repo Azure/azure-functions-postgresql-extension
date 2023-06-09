@@ -55,36 +55,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
 
 
-            inputOutputRule.BindToCollector<PGSQLObjectOpenType>(attr => new PostgreSqlAsyncCollector<PGSQLObjectOpenType>(CreateContext(attr), attr, logger));
-            inputOutputRule.BindToInput<OpenType>(typeof(PGSqlGenericsConverter<>), this._configuration, logger);
+            inputOutputRule.BindToCollector<PGSQLObjectOpenType>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
+
+            // inputOutputRule.BindToInput<OpenType>(typeof(PGSqlGenericsConverter<>), this._configuration, logger);
 
 
         }
 
-        internal PostgreSqlBindingContext CreateContext(PostgreSqlAttribute attribute)
-        {
-
-            NpgsqlConnection connection = GetService(attribute.ConnectionStringSetting);
 
 
-            return new PostgreSqlBindingContext
-            {
-                Connection = connection,
-                ResolvedAttribute = attribute,
-            };
-        }
 
-        private NpgsqlConnection GetService(string connectionStringSetting)
-        {
-            if (string.IsNullOrEmpty(connectionStringSetting))
-            {
-                throw new InvalidOperationException("The PostgreSql connection string must be set either via a connection string named 'PostgreSql' in the connectionStrings section of the config file or via a PostgreSqlAttribute.");
-            }
-
-            Console.WriteLine($"Using connectionStringSetting: {connectionStringSetting}");
-
-            return new NpgsqlConnection(connectionStringSetting);
-        }
     }
 
     /// <summary>
