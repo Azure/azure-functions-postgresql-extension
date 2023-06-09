@@ -24,30 +24,48 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("SELECT 1;", "ConnectionString")] IAsyncCollector<string> collector)
+            [PostgreSql("dbo.inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
         {
-
             Console.WriteLine("HttpTriggerSample Start");
-            log.LogInformation("C# HTTP trigger function processed a request.");
 
-            string name = req.Query["name"];
+            Fruit kiwi = new Fruit("kiwi", "green", 100);
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
-
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
-
-
-            await collector.AddAsync("SELECT 1;");
-            // await collector.FlushAsync();
+            await collector.AddAsync(kiwi);
 
             Console.WriteLine("HttpTriggerSample END");
 
 
-            return new OkObjectResult(responseMessage);
+            return new CreatedResult($"HttpTriggerSample", kiwi);
         }
+    }
+
+    /// <summary>
+    /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+    /// </summary>
+    public class Fruit
+    {
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public Fruit(string name, string color, int quantity = 1)
+        {
+            this.name = name;
+            this.color = color;
+            this.quantity = quantity;
+        }
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public string name { get; set; }
+
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public string color { get; set; }
+
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
+        public int quantity { get; set; }
     }
 }

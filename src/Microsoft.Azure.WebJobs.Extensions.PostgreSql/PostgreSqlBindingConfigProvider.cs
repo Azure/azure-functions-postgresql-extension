@@ -11,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.WebJobs.Logging;
 using Npgsql;
+using Microsoft.Azure.WebJobs.Host.Bindings;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -51,33 +53,43 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             ILogger logger = this._loggerFactory.CreateLogger(LogCategories.Bindings);
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            inputOutputRule.BindToCollector<string>(attr => new PostgreSqlAsyncCollector(CreateContext(attr), attr, logger));
+
+
+            inputOutputRule.BindToCollector<PGSQLObjectOpenType>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
+
+            // inputOutputRule.BindToInput<OpenType>(typeof(PGSqlGenericsConverter<>), this._configuration, logger);
+
 
         }
 
-        internal PostgreSqlBindingContext CreateContext(PostgreSqlAttribute attribute)
+
+
+
+    }
+
+    /// <summary>
+    /// Wrapper around OpenType to receive data correctly from output bindings (not as byte[])
+    /// This can be used for general "T --> JObject" bindings.
+    /// The exact definition here comes from the WebJobs v1.0 Queue binding.
+    /// refer https://github.com/Azure/azure-webjobs-sdk/blob/dev/src/Microsoft.Azure.WebJobs.Host/Bindings/OpenType.cs#L390
+    /// </summary>
+    internal class PGSQLObjectOpenType : OpenType.Poco
+    {
+        // return true when type is an "System.Object" to enable Object binding.
+        public override bool IsMatch(Type type, OpenTypeMatchContext context)
         {
-
-            NpgsqlConnection connection = GetService(attribute.ConnectionStringSetting);
-
-
-            return new PostgreSqlBindingContext
+            if (type.IsGenericType
+                && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             {
-                Connection = connection,
-                ResolvedAttribute = attribute,
-            };
-        }
-
-        private NpgsqlConnection GetService(string connectionStringSetting)
-        {
-            if (string.IsNullOrEmpty(connectionStringSetting))
-            {
-                throw new InvalidOperationException("The PostgreSql connection string must be set either via a connection string named 'PostgreSql' in the connectionStrings section of the config file or via a PostgreSqlAttribute.");
+                return false;
             }
 
-            Console.WriteLine($"Using connectionStringSetting: {connectionStringSetting}");
+            if (type.FullName == "System.Object")
+            {
+                return true;
+            }
 
-            return new NpgsqlConnection(connectionStringSetting);
+            return base.IsMatch(type, context);
         }
     }
 }
