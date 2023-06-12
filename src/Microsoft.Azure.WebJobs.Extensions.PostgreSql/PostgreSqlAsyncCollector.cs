@@ -9,6 +9,8 @@ using Npgsql;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
+using System.Text;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -66,7 +68,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <returns> A CompletedTask if executed successfully </returns>
         public async Task AddAsync(T item, CancellationToken cancellationToken = default)
         {
-            // Here we can add the item in strait away
+            // add the item right away
             Console.WriteLine("AsyncCollector AddAsync: " + item);
             using (NpgsqlConnection connection = this.CreateConnection())
             {
@@ -77,11 +79,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                     throw new InvalidOperationException("Connection is not open");
                 }
 
-                using (NpgsqlCommand command = connection.CreateCommand())
+                using (NpgsqlCommand command = createInsertCommand(this._attribute.CommandText, item, connection))
                 {
-                    string commandText = createInsertCommand("inventory", item);
-                    Console.WriteLine("Executing SQL command: " + commandText);
-                    command.CommandText = commandText;
+                    Console.WriteLine("Executing SQL command: " + command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
             }
@@ -93,44 +93,42 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             return new NpgsqlConnection(connectionString);
         }
 
-        private string createInsertCommand(string table, T item)
+        private NpgsqlCommand createInsertCommand(string table, T item, NpgsqlConnection conn)
         {
-
             var properties = typeof(T).GetProperties();
 
-            // generate the SQL command
-            string sqlCommand = "INSERT INTO " + table + " (";
-            string sqlCommandValues = " VALUES (";
+            var sqlCommand = new StringBuilder($"INSERT INTO {table} (");
+            var sqlCommandValues = new StringBuilder(" VALUES (");
+            var parameters = new List<NpgsqlParameter>();
+
             foreach (var property in properties)
             {
-                sqlCommand += property.Name + ", ";
-                sqlCommandValues += getValueString(property, item) + ", ";
+                sqlCommand.Append($"{property.Name}, ");
+                sqlCommandValues.Append($"@{property.Name}, ");
+
+                var value = property.GetValue(item);
+                if (value == null)
+                {
+                    throw new Exception($"No value associated with key {property.Name}");
+                }
+
+                parameters.Add(new NpgsqlParameter(property.Name, value));
             }
-            sqlCommand = sqlCommand.Substring(0, sqlCommand.Length - 2) + ")";
-            sqlCommandValues = sqlCommandValues.Substring(0, sqlCommandValues.Length - 2) + ")";
 
+            sqlCommand.Length -= 2; // Remove trailing comma and space
+            sqlCommandValues.Length -= 2; // Remove trailing comma and space
 
-            return sqlCommand + sqlCommandValues + ";";
+            sqlCommand.Append(")");
+            sqlCommandValues.Append(")");
 
+            var commandText = sqlCommand.ToString() + sqlCommandValues.ToString();
+            var command = new NpgsqlCommand(commandText, conn);
+
+            parameters.ForEach(p => command.Parameters.Add(p));
+
+            return command;
         }
 
-        private string getValueString(PropertyInfo property, T item)
-        {
-            string rawVal = property.GetValue(item).ToString();
-            if (rawVal == null)
-            {
-                throw new Exception("No value associated with key {" + property.Name + "}");
-            }
-
-            switch (property.PropertyType.ToString())
-            {
-                case "System.Int32":
-                    return rawVal;
-                default:
-                    return "\'" + rawVal + "\'";
-            }
-
-        }
 
         /// <summary>
         /// </summary>

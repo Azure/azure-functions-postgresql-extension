@@ -9,40 +9,47 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql;
 using System.Collections.Generic;
+using Npgsql;
 
-namespace WebJobs.Extensions.PostgreSql.Samples
+
+namespace InputSample
 {
     /// <summary>
     /// This class contains the sample code used in the HttpTrigger documentation.
     /// </summary>
-    public static class HttpTriggerSample
+    public static class InputSample
     {
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
-        [FunctionName("HttpTriggerSample")]
+        [FunctionName("InputSample")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
+            [PostgreSql("SELECT * FROM inventory;", "ConnectionString")] IAsyncEnumerable<Item> products
+            )
         {
-            Fruit kiwi = new Fruit("kiwi", true, "green", 100);
+            IAsyncEnumerator<Item> enumerator = products.GetAsyncEnumerator();
+            List<Item> itemList = new List<Item>();
+            while (await enumerator.MoveNextAsync())
+            {
+                itemList.Add(enumerator.Current);
+            }
+            await enumerator.DisposeAsync();
 
-            await collector.AddAsync(kiwi);
-
-            return new CreatedResult($"HttpTriggerSample", kiwi);
+            return new OkObjectResult(itemList);
         }
     }
 
     /// <summary>
     /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
     /// </summary>
-    public class Fruit
+    public class Item
     {
         /// <summary>
         /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
         /// </summary>
-        public Fruit(string name, bool isFruit, string color, int quantity = 1)
+        public Item(string name, bool isFruit, string color, int quantity = 1)
         {
             this.name = name;
             this.isFruit = isFruit;
@@ -77,4 +84,5 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         /// </summary>
         public DateTime created { get; set; }
     }
+
 }

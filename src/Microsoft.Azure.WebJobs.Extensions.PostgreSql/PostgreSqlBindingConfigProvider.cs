@@ -13,6 +13,7 @@ using Microsoft.Azure.WebJobs.Logging;
 using Npgsql;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using System.Collections.Generic;
+using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PGSqlConverters;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -54,10 +55,15 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             ILogger logger = this._loggerFactory.CreateLogger(LogCategories.Bindings);
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
 
+            var converter = new PGSqlConverter(this._configuration);
+            inputOutputRule.BindToInput(converter);
+
+            inputOutputRule.BindToInput<string>(typeof(PostgreSqlGenericsConverter<string>), this._configuration, logger);
+
 
             inputOutputRule.BindToCollector<PGSQLObjectOpenType>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
 
-            // inputOutputRule.BindToInput<OpenType>(typeof(PGSqlGenericsConverter<>), this._configuration, logger);
+            inputOutputRule.BindToInput<OpenType>(typeof(PostgreSqlGenericsConverter<>), this._configuration, logger);
 
 
         }
