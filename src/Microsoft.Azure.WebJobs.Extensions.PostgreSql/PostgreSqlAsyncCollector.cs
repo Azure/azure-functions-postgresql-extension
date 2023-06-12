@@ -79,7 +79,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                     throw new InvalidOperationException("Connection is not open");
                 }
 
-                using (NpgsqlCommand command = createInsertCommand("inventory", item, connection))
+                using (NpgsqlCommand command = createInsertCommand(this._attribute.CommandText, item, connection))
                 {
                     Console.WriteLine("Executing SQL command: " + command.CommandText);
                     await command.ExecuteNonQueryAsync();

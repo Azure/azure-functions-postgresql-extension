@@ -24,7 +24,7 @@ namespace WebJobs.Extensions.PostgreSql.Samples
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("dbo.inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
+            [PostgreSql("inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
         {
             Fruit kiwi = new Fruit("kiwi", true, "green", 100);
 
