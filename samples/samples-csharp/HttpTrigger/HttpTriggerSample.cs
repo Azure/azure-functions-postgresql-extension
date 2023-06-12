@@ -26,14 +26,9 @@ namespace WebJobs.Extensions.PostgreSql.Samples
             ILogger log,
             [PostgreSql("dbo.inventory", "ConnectionString")] IAsyncCollector<Fruit> collector)
         {
-            Console.WriteLine("HttpTriggerSample Start");
-
             Fruit kiwi = new Fruit("kiwi", true, "green", 100);
 
             await collector.AddAsync(kiwi);
-
-            Console.WriteLine("HttpTriggerSample END");
-
 
             return new CreatedResult($"HttpTriggerSample", kiwi);
         }

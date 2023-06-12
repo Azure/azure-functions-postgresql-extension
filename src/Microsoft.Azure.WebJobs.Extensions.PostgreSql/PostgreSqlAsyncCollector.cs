@@ -68,7 +68,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <returns> A CompletedTask if executed successfully </returns>
         public async Task AddAsync(T item, CancellationToken cancellationToken = default)
         {
-            // Here we can add the item in strait away
+            // add the item right away
             Console.WriteLine("AsyncCollector AddAsync: " + item);
             using (NpgsqlConnection connection = this.CreateConnection())
             {

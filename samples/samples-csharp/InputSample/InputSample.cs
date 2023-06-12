@@ -7,31 +7,37 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.Azure.WebJobs.Extensions.PostgreSql;
+using System.Collections.Generic;
+using Npgsql;
+
 
 namespace InputSample
 {
+    /// <summary>
+    /// This class contains the sample code used in the HttpTrigger documentation.
+    /// </summary>
     public static class InputSample
     {
+        /// <summary>
+        /// This sample demonstrates how to use the PostgreSql extension for Azure Functions.
+        /// </summary>
         [FunctionName("InputSample")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log,
-            [PostgreSql("SELECT * FROM inventory;", "ConnectionString")] IEnumerable<Item> products
+            [PostgreSql("SELECT * FROM inventory;", "ConnectionString")] IAsyncEnumerable<Item> products
             )
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            IAsyncEnumerator<Item> enumerator = products.GetAsyncEnumerator();
+            List<Item> itemList = new List<Item>();
+            while (await enumerator.MoveNextAsync())
+            {
+                itemList.Add(enumerator.Current);
+            }
+            await enumerator.DisposeAsync();
 
-            string name = req.Query["name"];
-
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
-
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
-
-            return new OkObjectResult(responseMessage);
+            return new OkObjectResult(itemList);
         }
     }
 
