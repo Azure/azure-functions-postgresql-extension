@@ -137,6 +137,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 throw new ArgumentException("The type of the SQL attribute for an input binding must be either CommandType.Text for a direct SQL query, or CommandType.StoredProcedure for a stored procedure.");
             }
             ParseParameters(attribute.Parameters, command);
+            Console.WriteLine($"Executing SQL command '{command.CommandText}'");
+            Console.WriteLine($"SQL command type: {command.CommandType}");
+            foreach (NpgsqlParameter param in command.Parameters)
+            {
+                Console.WriteLine($"SQL parameter '{param.ParameterName}': '{param.Value}' (type: '{param.DbType}')");
+            }
             return command;
         }
 
