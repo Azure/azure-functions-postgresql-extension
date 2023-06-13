@@ -98,6 +98,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 catch (Exception ex)
                 {
                     Console.WriteLine("ConvertAsync Exception " + ex.Message);
+                    Console.WriteLine("ConvertAsync Exception " + ex.StackTrace);
                     throw;
                 }
             }
