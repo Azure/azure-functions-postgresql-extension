@@ -46,7 +46,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
 
                 Console.WriteLine("Converting to NpgsqlCommand" + attribute.CommandText);
-                return new NpgsqlCommand(attribute.CommandText, CreateConnection(attribute.ConnectionStringSetting));
+                return PostgreSqlBindingUtilities.BuildCommand(attribute, CreateConnection(attribute.ConnectionStringSetting));
+
             }
 
             public NpgsqlConnection CreateConnection(string connectionString)
@@ -98,6 +99,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 catch (Exception ex)
                 {
                     Console.WriteLine("ConvertAsync Exception " + ex.Message);
+                    Console.WriteLine("ConvertAsync Exception " + ex.StackTrace);
                     throw;
                 }
             }
@@ -147,6 +149,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 using (var adapter = new NpgsqlDataAdapter())
                 using (NpgsqlCommand command = PostgreSqlBindingUtilities.BuildCommand(attribute, connection))
                 {
+                    Console.WriteLine(command.CommandType + "\n" + command.CommandText);
                     adapter.SelectCommand = command;
                     await connection.OpenAsyncWithSqlErrorHandling(CancellationToken.None);
                     var dataTable = new DataTable();

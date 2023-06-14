@@ -10,6 +10,7 @@ using System.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -68,6 +69,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// </exception>
         public static void ParseParameters(string parameters, NpgsqlCommand command)
         {
+            Console.WriteLine("ParseParameters");
+            Console.WriteLine(parameters);
             if (command == null)
             {
                 throw new ArgumentNullException(nameof(command));
@@ -100,12 +103,15 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
                     if (items[1].Equals("null", StringComparison.OrdinalIgnoreCase))
                     {
-                        command.Parameters.Add(new NpgsqlParameter(items[0], DBNull.Value));
+                        NpgsqlParameter parameter = new NpgsqlParameter(items[0], NpgsqlDbType.Text); // change NpgsqlDbType to appropriate type
+                        parameter.Value = DBNull.Value;
+                        command.Parameters.Add(parameter);
                     }
                     else
                     {
                         command.Parameters.Add(new NpgsqlParameter(items[0], items[1]));
                     }
+
                 }
             }
         }
