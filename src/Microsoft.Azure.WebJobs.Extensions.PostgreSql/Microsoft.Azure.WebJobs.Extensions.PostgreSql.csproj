@@ -31,6 +31,7 @@
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.AspNetCore.Http" />
     <PackageReference Include="xunit" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" />
   </ItemGroup>
 
   
