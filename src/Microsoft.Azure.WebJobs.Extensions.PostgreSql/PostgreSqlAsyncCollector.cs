@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Text;
 using System.Collections.Generic;
+using NpgsqlTypes;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -103,14 +104,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             foreach (var property in properties)
             {
-                sqlCommand.Append($"{property.Name}, ");
-                sqlCommandValues.Append($"@{property.Name}, ");
-
                 var value = property.GetValue(item);
                 if (value == null)
                 {
-                    throw new Exception($"No value associated with key {property.Name}");
+                    continue;
                 }
+
+                sqlCommand.Append($"{property.Name}, ");
+                sqlCommandValues.Append($"@{property.Name}, ");
 
                 parameters.Add(new NpgsqlParameter(property.Name, value));
             }
