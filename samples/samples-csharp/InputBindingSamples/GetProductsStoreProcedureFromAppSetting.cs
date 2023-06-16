@@ -12,7 +12,7 @@ using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common;
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamples
 {
     /// <summary>
-    /// This shows an example of a SQL Input binding that uses a stored procedure 
+    /// This shows an example of a PostgreSQL Input binding that uses a stored procedure 
     /// from an app setting value to query for Products with a specific cost that is also defined as an app setting value.
     /// </summary>
     public static class GetProductsStoredProcedureFromAppSetting

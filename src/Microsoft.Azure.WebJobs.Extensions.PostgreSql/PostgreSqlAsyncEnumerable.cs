@@ -28,20 +28,20 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// </exception>
         public PostgreSqlAsyncEnumerable(NpgsqlConnection connection, PostgreSqlAttribute attribute)
         {
-            this.Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-            this._attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
-            this.Connection.Open();
+            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            _attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
+            Connection.Open();
         }
         /// <summary>
         /// Returns the enumerator associated with this enumerable. The enumerator will execute the query specified
-        /// in attribute and "lazily" grab the SQL rows corresponding to the query result. It will only read a
+        /// in attribute and "lazily" grab rows corresponding to the query result. It will only read a
         /// row into memory if <see cref="PostgreSqlAsyncEnumerator.MoveNextAsync"/> is called
         /// </summary>
         /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
         /// <returns>The enumerator</returns>
         public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
-            return new PostgreSqlAsyncEnumerator(this.Connection, this._attribute);
+            return new PostgreSqlAsyncEnumerator(Connection, _attribute);
         }
 
 
@@ -60,8 +60,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             /// </exception>
             public PostgreSqlAsyncEnumerator(NpgsqlConnection connection, PostgreSqlAttribute attribute)
             {
-                this._connection = connection ?? throw new ArgumentNullException(nameof(connection));
-                this._attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
+                _connection = connection ?? throw new ArgumentNullException(nameof(connection));
+                _attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
             }
 
             /// <summary>
@@ -73,26 +73,26 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             public T Current { get; private set; }
 
             /// <summary>
-            /// Closes the SQL connection and resources associated with reading the results of the query
+            /// Closes the NpgSQL connection and resources associated with reading the results of the query
             /// </summary>
             /// <returns></returns>
             public ValueTask DisposeAsync()
             {
                 // Doesn't seem like there's an async version of closing the reader/connection
-                this._reader?.Close();
-                this._connection.Close();
+                _reader?.Close();
+                _connection.Close();
                 return new ValueTask(Task.CompletedTask);
             }
 
             /// <summary>
-            /// Moves the enumerator to the next row of the SQL query result
+            /// Moves the enumerator to the next row of the PostgreSQL query result
             /// </summary>
             /// <returns>
             /// True if there is another row left in the query to process, or false if this was the last row
             /// </returns>
             public ValueTask<bool> MoveNextAsync()
             {
-                return new ValueTask<bool>(this.GetNextRowAsync());
+                return new ValueTask<bool>(GetNextRowAsync());
             }
 
             /// <summary>
@@ -105,18 +105,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 // check connection state before trying to access the reader
                 // if DisposeAsync has already closed it due to the issue described here https://github.com/Azure/azure-functions-sql-extension/issues/350
-                if (this._connection.State != System.Data.ConnectionState.Closed)
+                if (_connection.State != System.Data.ConnectionState.Closed)
                 {
-                    if (this._reader == null)
+                    if (_reader == null)
                     {
-                        using (NpgsqlCommand command = PostgreSqlBindingUtilities.BuildCommand(this._attribute, this._connection))
-                        {
-                            this._reader = await command.ExecuteReaderAsync();
-                        }
+                        using NpgsqlCommand command = PostgreSqlBindingUtilities.BuildCommand(_attribute, _connection);
+                        _reader = await command.ExecuteReaderAsync();
                     }
-                    if (await this._reader.ReadAsync())
+                    if (await _reader.ReadAsync())
                     {
-                        this.Current = Utils.JsonDeserializeObject<T>(this.SerializeRow());
+                        Current = Utils.JsonDeserializeObject<T>(SerializeRow());
                         return true;
                     }
                 }
@@ -133,7 +131,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 {
                     DateFormatString = ISO_8061_DATETIME_FORMAT
                 };
-                return Utils.JsonSerializeObject(PostgreSqlBindingUtilities.BuildDictionaryFromSqlRow(this._reader), jsonSerializerSettings);
+                return Utils.JsonSerializeObject(PostgreSqlBindingUtilities.BuildDictionaryFromSqlRow(_reader), jsonSerializerSettings);
             }
 
         }

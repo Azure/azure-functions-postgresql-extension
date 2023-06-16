@@ -19,7 +19,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <summary>
         /// Builds a connection using the connection string attached to the app setting with name ConnectionStringSetting
         /// </summary>
-        /// <param name="connectionStringSetting">The name of the app setting that stores the SQL connection string</param>
+        /// <param name="connectionStringSetting">The name of the app setting that stores the PostgreSQL connection string</param>
         /// <param name="configuration">Used to obtain the value of the app setting</param>
         /// <exception cref="ArgumentException">
         /// Thrown if ConnectionStringSetting is empty or null
@@ -38,7 +38,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             if (string.IsNullOrEmpty(connectionStringSetting))
             {
                 throw new ArgumentException("Must specify ConnectionStringSetting, which should refer to the name of an app setting that " +
-                    "contains a SQL connection string");
+                    "contains a PostgreSQL connection string");
             }
             if (configuration == null)
             {
@@ -47,8 +47,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             string connectionString = configuration.GetConnectionStringOrSetting(connectionStringSetting);
             if (string.IsNullOrEmpty(connectionString))
             {
-                throw new ArgumentException(connectionString == null ? $"ConnectionStringSetting '{connectionStringSetting}' is missing in your function app settings, please add the setting with a valid SQL connection string." :
-                $"ConnectionStringSetting '{connectionStringSetting}' is empty in your function app settings, please update the setting with a valid SQL connection string.");
+                throw new ArgumentException(connectionString == null ? $"ConnectionStringSetting '{connectionStringSetting}' is missing in your function app settings, please add the setting with a valid PostgreSQL connection string." :
+                $"ConnectionStringSetting '{connectionStringSetting}' is empty in your function app settings, please update the setting with a valid PostgreSQL connection string.");
             }
             return connectionString;
         }
@@ -63,14 +63,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// as in "@param1=,@param2=param2"
         /// </summary>
         /// <param name="parameters">The parameter string to be parsed</param>
-        /// <param name="command">The SqlCommand to which the parsed parameters will be added to</param>
+        /// <param name="command">The PostgreSqlCommand to which the parsed parameters will be added to</param>
         /// <exception cref="ArgumentNullException">
         /// Thrown if command is null
         /// </exception>
         public static void ParseParameters(string parameters, NpgsqlCommand command)
         {
-            Console.WriteLine("ParseParameters");
-            Console.WriteLine(parameters);
             if (command == null)
             {
                 throw new ArgumentNullException(nameof(command));
@@ -103,8 +101,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
                     if (items[1].Equals("null", StringComparison.OrdinalIgnoreCase))
                     {
-                        NpgsqlParameter parameter = new NpgsqlParameter(items[0], NpgsqlDbType.Text); // change NpgsqlDbType to appropriate type
-                        parameter.Value = DBNull.Value;
+                        NpgsqlParameter parameter = new NpgsqlParameter(items[0], NpgsqlDbType.Text)
+                        {
+                            Value = DBNull.Value
+                        }; // change NpgsqlDbType to appropriate type
                         command.Parameters.Add(parameter);
                     }
                     else
@@ -117,16 +117,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Builds a SqlCommand using the query/stored procedure and parameters specified in attribute.
+        /// Builds a PostgreSqlCommand using the query/stored procedure and parameters specified in attribute.
         /// </summary>
-        /// <param name="attribute">The SqlAttribute with the parameter, command type, and command text</param>
-        /// <param name="connection">The connection to attach to the SqlCommand</param>
+        /// <param name="attribute">The PostgreSqlAttribute with the parameter, command type, and command text</param>
+        /// <param name="connection">The connection to attach to the PostgreSqlCommand</param>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the CommandType specified in attribute is neither StoredProcedure nor Text. We only support
         /// commands that refer to the name of a StoredProcedure (the StoredProcedure CommandType) or are themselves
         /// raw queries (the Text CommandType).
         /// </exception>
-        /// <returns>The built SqlCommand</returns>
+        /// <returns>The built PostgreSqlCommand</returns>
         public static NpgsqlCommand BuildCommand(PostgreSqlAttribute attribute, NpgsqlConnection connection)
         {
             var command = new NpgsqlCommand
@@ -140,22 +140,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             }
             else if (attribute.CommandType != CommandType.Text)
             {
-                throw new ArgumentException("The type of the SQL attribute for an input binding must be either CommandType.Text for a direct SQL query, or CommandType.StoredProcedure for a stored procedure.");
+                throw new ArgumentException("The type of the PostgreSQL attribute for an input binding must be either CommandType.Text for a direct PostgreSQL query, or CommandType.StoredProcedure for a stored procedure.");
             }
             ParseParameters(attribute.Parameters, command);
-            Console.WriteLine($"Executing SQL command '{command.CommandText}'");
-            Console.WriteLine($"SQL command type: {command.CommandType}");
-            foreach (NpgsqlParameter param in command.Parameters)
-            {
-                Console.WriteLine($"SQL parameter '{param.ParameterName}': '{param.Value}' (type: '{param.DbType}')");
-            }
             return command;
         }
 
         /// <summary>
-        /// Returns a dictionary where each key is a column name and each value is the SQL row's value for that column
+        /// Returns a dictionary where each key is a column name and each value is the PostgreSQL row's value for that column
         /// </summary>
-        /// <param name="reader">Used to determine the columns of the table as well as the next SQL row to process</param>
+        /// <param name="reader">Used to determine the columns of the table as well as the next PostgreSQL row to process</param>
         /// <returns>The built dictionary</returns>
         public static IReadOnlyDictionary<string, object> BuildDictionaryFromSqlRow(NpgsqlDataReader reader)
         {
@@ -199,7 +193,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         public static async Task VerifyDatabaseSupported(NpgsqlConnection connection, ILogger logger, CancellationToken cancellationToken)
         {
             // do nothing for now
-
             await Task.Yield();
         }
 
@@ -216,14 +209,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Checks whether an exception is a fatal SqlException. It is deteremined to be fatal
+        /// Checks whether an exception is a fatal PostgreSqlException. It is deteremined to be fatal
         /// if the Class value of the Exception is 20 or higher, see
         /// https://learn.microsoft.com/dotnet/api/microsoft.data.sqlclient.sqlexception#remarks
         /// for details
         /// </summary>
         /// <param name="e">The exception to check</param>
-        /// <returns>True if the exception is a fatal SqlClientException, false otherwise</returns>
-        internal static bool IsFatalSqlException(this Exception e)
+        /// <returns>True if the exception is a fatal PostgreSqlClientException, false otherwise</returns>
+        internal static bool IsFatalPostgreSqlException(this Exception e)
         {
             throw new NotImplementedException();
         }
@@ -274,7 +267,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <summary>
         /// Calls ExecuteNonQueryAsync and logs an error if it fails before rethrowing.
         /// </summary>
-        /// <param name="cmd">The SqlCommand being executed</param>
+        /// <param name="cmd">The PostgreSqlCommand being executed</param>
         /// <param name="logger">The logger</param>
         /// <param name="cancellationToken">The cancellation token to pass to the call</param>
         /// <returns>The result of the call</returns>
@@ -294,7 +287,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <summary>
         /// Calls ExecuteReaderAsync and logs an error if it fails before rethrowing.
         /// </summary>
-        /// <param name="cmd">The SqlCommand being executed</param>
+        /// <param name="cmd">The PostgreSqlCommand being executed</param>
         /// <param name="logger">The logger</param>
         /// <param name="cancellationToken">The cancellation token to pass to the call</param>
         /// <returns>The result of the call</returns>

@@ -9,9 +9,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common
     public class ProductUtilities
     {
         /// <summary>
-        /// Returns a list of <paramref name="num"/> Products with sequential IDs, a cost of 100, and "test" as name.
+        /// Returns a list of <paramref name="num"/> Products with sequential IDs, a cost of 100, and "test" as name by default.
         /// </summary>
-        public static List<Product> GetNewProducts(int num)
+        public static List<Product> GetNewProducts(int num, string name = "test")
         {
             var products = new List<Product>();
             for (int i = 0; i < num; i++)
@@ -20,7 +20,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common
                 {
                     ProductId = i,
                     Cost = 100 * i,
-                    Name = "test"
+                    Name = name
                 };
                 products.Add(product);
             }

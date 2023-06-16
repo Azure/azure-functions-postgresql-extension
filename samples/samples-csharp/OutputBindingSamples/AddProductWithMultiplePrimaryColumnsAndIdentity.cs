@@ -23,7 +23,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
     public static class AddProductWithMultiplePrimaryColumnsAndIdentity
     {
         /// <summary>
-        /// This shows an example of a SQL Output binding where the target table has a primary key 
+        /// This shows an example of a PostgreSQL Output binding where the target table has a primary key 
         /// which is comprised of multiple columns, with one of them being an identity column. In 
         /// such a case the identity column is not required to be in the object used by the binding 
         /// - it will insert a row with the other values and the ID will be generated upon insert.

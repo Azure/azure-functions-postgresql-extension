@@ -20,7 +20,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
             HttpRequest req,
             [PostgreSql("Products", "PostgreSqlConnectionString")] IAsyncCollector<Product> products)
         {
-            List<Product> newProducts = ProductUtilities.GetNewProducts(100);
+            List<Product> newProducts = ProductUtilities.GetNewProducts(5000, "First Add");
             foreach (Product product in newProducts)
             {
                 await products.AddAsync(product);
@@ -28,7 +28,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
             // Rows are upserted here
             await products.FlushAsync();
 
-            newProducts = ProductUtilities.GetNewProducts(100);
+            newProducts = ProductUtilities.GetNewProducts(5000, "Second Add");
             foreach (Product product in newProducts)
             {
                 await products.AddAsync(product);

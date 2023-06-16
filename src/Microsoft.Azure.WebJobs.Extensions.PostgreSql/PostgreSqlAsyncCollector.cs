@@ -12,6 +12,9 @@ using System.Reflection;
 using System.Text;
 using System.Collections.Generic;
 using NpgsqlTypes;
+using MoreLinq;
+using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
+using System.Linq;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -20,6 +23,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         private readonly IConfiguration _configuration;
         private readonly PostgreSqlAttribute _attribute;
         private readonly ILogger _logger;
+
+        private readonly SemaphoreSlim _rowLock = new SemaphoreSlim(1, 1);
+
+        private readonly List<T> _rows = new List<T>();
+
+        private IEnumerable<Column> _columns;
+
 
         /// <summary>
         /// Initializes a new instance of the PostgreSqlAsyncCollector class.
@@ -38,98 +48,123 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// </exception>
         public PostgreSqlAsyncCollector(IConfiguration configuration, PostgreSqlAttribute attribute, ILogger logger)
         {
-            Console.WriteLine("AsyncCollector Constructor");
-            this._configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            this._attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
-            this._logger = logger;
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _attribute = attribute ?? throw new ArgumentNullException(nameof(attribute));
+            _logger = logger;
 
-
-            Console.WriteLine("AsyncCollector Constructor: " + this._attribute.ConnectionStringSetting);
-
-            using (NpgsqlConnection connection = CreateConnection())
+            using NpgsqlConnection connection = CreateConnection();
+            try
             {
-                connection.OpenAsync().GetAwaiter().GetResult();
-                // check if conncetion is open
-                if (connection.State != System.Data.ConnectionState.Open)
-                {
-                    throw new InvalidOperationException("Connection is not open");
-                }
-                // log that connection is open
-                Console.WriteLine("Connection is open");
+                connection.Open();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while trying to open the database connection.");
+                throw;
+            }
+
+            // check if connection is open
+            if (connection.State != System.Data.ConnectionState.Open)
+            {
+                _logger.LogError("Failed to open the database connection.");
+                throw new InvalidOperationException("Connection is not open");
             }
         }
 
         /// <summary>
         /// Adds an item to this collector that is processed in a batch along with all other items added via
-        /// AddAsync when <see cref="FlushAsync"/> is called. Each item is interpreted as a row to be added to the SQL table
-        /// specified in the SQL Binding.
+        /// AddAsync when <see cref="FlushAsync"/> is called. Each item is interpreted as a row to be added to the PostgreSQL table
+        /// specified in the PostgreSQL Binding.
         /// </summary>
         /// <param name="item"> The item to add to the collector </param>
         /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
         /// <returns> A CompletedTask if executed successfully </returns>
         public async Task AddAsync(T item, CancellationToken cancellationToken = default)
         {
-            // add the item right away
-            Console.WriteLine("AsyncCollector AddAsync: " + item);
-            using (NpgsqlConnection connection = this.CreateConnection())
+            if (item != null)
             {
-                connection.OpenAsync().GetAwaiter().GetResult();
-                // check if conncetion is open
-                if (connection.State != System.Data.ConnectionState.Open)
+                await _rowLock.WaitAsync(cancellationToken);
+                try
                 {
-                    throw new InvalidOperationException("Connection is not open");
+                    _rows.Add(item);
                 }
-
-                using (NpgsqlCommand command = createInsertCommand(this._attribute.CommandText, item, connection))
+                finally
                 {
-                    Console.WriteLine("Executing SQL command: " + command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    _rowLock.Release();
                 }
             }
+
         }
 
         private NpgsqlConnection CreateConnection()
         {
-            string connectionString = this._attribute.ConnectionStringSetting;
+            string connectionString = _attribute.ConnectionStringSetting;
             return new NpgsqlConnection(connectionString);
         }
 
-        private NpgsqlCommand createInsertCommand(string table, T item, NpgsqlConnection conn)
+        private NpgsqlCommand CreateBatchInsertCommand(string table, IEnumerable<T> batch, NpgsqlConnection conn)
         {
             var properties = typeof(T).GetProperties();
-
-            var sqlCommand = new StringBuilder($"INSERT INTO {table} (");
-            var sqlCommandValues = new StringBuilder(" VALUES (");
+            var sqlCommandBatch = new StringBuilder();
             var parameters = new List<NpgsqlParameter>();
+            int itemIndex = 0;
 
-            foreach (var property in properties)
+            // Generate primary keys clause
+            var primaryKeys = _columns.Where(c => c.IsPrimaryKey == "true").Select(c => c.ColumnName).ToArray();
+            var pkConflictClause = string.Join(", ", primaryKeys);
+
+            foreach (T item in batch)
             {
-                var value = property.GetValue(item);
-                if (value == null)
+                var sqlCommand = new StringBuilder($"INSERT INTO {table} (");
+                var sqlCommandValues = new StringBuilder(" VALUES (");
+                var sqlCommandConflict = new StringBuilder($" ON CONFLICT ({pkConflictClause}) DO UPDATE SET ");
+
+                foreach (var property in properties)
                 {
-                    continue;
+                    var value = property.GetValue(item);
+                    if (value == null)
+                    {
+                        continue;
+                    }
+
+                    sqlCommand.Append($"{property.Name}, ");
+                    sqlCommandValues.Append($"@{property.Name}{itemIndex}, ");
+
+                    // Only append to conflict statement if it's not a primary key
+                    if (!primaryKeys.Contains(property.Name))
+                    {
+                        sqlCommandConflict.Append($"{property.Name} = EXCLUDED.{property.Name}, ");
+                    }
+
+                    parameters.Add(new NpgsqlParameter($"{property.Name}{itemIndex}", value));
                 }
 
-                sqlCommand.Append($"{property.Name}, ");
-                sqlCommandValues.Append($"@{property.Name}, ");
+                sqlCommand.Length -= 2; // Remove trailing comma and space
+                sqlCommandValues.Length -= 2; // Remove trailing comma and space
+                sqlCommandConflict.Length -= 2; // Remove trailing comma and space
 
-                parameters.Add(new NpgsqlParameter(property.Name, value));
+                sqlCommand.Append(')');
+                sqlCommandValues.Append(')');
+                sqlCommand.Append(sqlCommandValues);
+
+                if (primaryKeys.Length > 0) // Only append conflict clause if there are primary keys
+                {
+                    sqlCommand.Append(sqlCommandConflict);
+                }
+
+                sqlCommand.Append("; ");
+
+                sqlCommandBatch.Append(sqlCommand);
+
+                itemIndex++;
             }
 
-            sqlCommand.Length -= 2; // Remove trailing comma and space
-            sqlCommandValues.Length -= 2; // Remove trailing comma and space
-
-            sqlCommand.Append(")");
-            sqlCommandValues.Append(")");
-
-            var commandText = sqlCommand.ToString() + sqlCommandValues.ToString();
-            var command = new NpgsqlCommand(commandText, conn);
+            var command = new NpgsqlCommand(sqlCommandBatch.ToString(), conn);
 
             parameters.ForEach(p => command.Parameters.Add(p));
 
             return command;
         }
-
 
         /// <summary>
         /// </summary>
@@ -138,20 +173,82 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// automatically. </returns>
         public async Task FlushAsync(CancellationToken cancellationToken = default)
         {
-
-            // dont care about this for now
-
-            Console.WriteLine("AsyncCollector FlushAsync");
-
-
-
-            await Task.Delay(0);
+            await _rowLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (_rows.Count != 0)
+                {
+                    _columns = await GetColumnPropertiesAsync(_attribute, _configuration); //TODO move to initialization
+                    await UpsertRowsAsync(_rows, _attribute, _configuration);
+                    _rows.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while trying to flush the rows.");
+                throw;
+            }
+            finally
+            {
+                _rowLock.Release();
+            }
         }
 
+        private async Task<IEnumerable<Column>> GetColumnPropertiesAsync(PostgreSqlAttribute attribute, IConfiguration configuration)
+        {
+            PostgreSqlGenericsConverter<Column> converter = new PostgreSqlGenericsConverter<Column>(_configuration, _logger);
+            string columnPropertyQuery = $"SELECT a.attname AS \"ColumnName\", format_type(a.atttypid, a.atttypmod) AS \"DataType\", CASE WHEN a.attnum = ANY(i.indkey) THEN TRUE ELSE FALSE END AS \"IsPrimaryKey\" FROM pg_attribute a LEFT JOIN pg_index i ON a.attrelid = i.indrelid WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '{attribute.CommandText}'::regclass;"; // TODO: use parameters instead of string interpolation for security
+            // print the query
+            IEnumerable<Column> columns = await converter.ConvertAsync(columnPropertyQuery, _attribute, new CancellationToken());
+
+            return columns;
+        }
+
+        private async Task UpsertRowsAsync(IList<T> rows, PostgreSqlAttribute attribute, IConfiguration configuration)
+        {
+            using NpgsqlConnection connection = CreateConnection();
+            await connection.OpenAsync();
+            string fullTableName = attribute.CommandText;
+
+            try
+            {
+                // Starting the transaction.
+                using var transaction = await connection.BeginTransactionAsync();
+                int batchSize = 1000;
+
+                // Partition the rows into batches.
+                foreach (IEnumerable<T> batch in rows.Batch(batchSize))
+                {
+                    using NpgsqlCommand command = CreateBatchInsertCommand(fullTableName, batch, connection);
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                // Commit the transaction.
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while upserting rows.");
+                throw;
+            }
+        }
 
         public void Dispose()
         {
-            return;
+            _rowLock.Dispose();
         }
     }
+
+    internal class Column
+    {
+        public string ColumnName { get; set; }
+        public string DataType { get; set; }
+        public string IsPrimaryKey { get; set; }
+
+        public override string ToString()
+        {
+            return $"ColumnName: {ColumnName}, DataType: {DataType}, IsPrimaryKey: {IsPrimaryKey}";
+        }
+    }
+
 }

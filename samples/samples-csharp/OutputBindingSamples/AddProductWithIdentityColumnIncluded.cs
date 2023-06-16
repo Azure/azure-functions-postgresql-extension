@@ -15,7 +15,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
     public static class AddProductWithIdentityColumnIncluded
     {
         /// <summary>
-        /// This shows an example of a SQL Output binding where the target table has a primary key
+        /// This shows an example of a PostgreSQL Output binding where the target table has a primary key
         /// which is an identity column and the identity column is included in the output object. In
         /// this case the identity column is used to match the rows and all non-identity columns are
         /// updated if a match is found. Otherwise a new row is inserted (with the identity column being
