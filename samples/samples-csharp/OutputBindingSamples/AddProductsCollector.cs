@@ -19,7 +19,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
             HttpRequest req,
             [PostgreSql("Products", "PostgreSqlConnectionString")] ICollector<Product> products)
         {
-            List<Product> newProducts = ProductUtilities.GetNewProducts(100);
+            List<Product> newProducts = ProductUtilities.GetNewProducts(5000);
             foreach (Product product in newProducts)
             {
                 products.Add(product);

@@ -8,8 +8,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         public const string ISO_8061_DATETIME_FORMAT = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffZ";
 
         /// <summary>
-        /// Sql Server Edition of the target server, list consolidated from
-        /// https://learn.microsoft.com/en-us/sql/t-sql/functions/serverproperty-transact-sql?view=sql-server-ver16
+        /// PostgreSql Server Edition of the target server
+        /// TODO update for PostgreSql 
         /// </summary>
         public enum EngineEdition
         {
@@ -32,7 +32,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             IAsyncEnumerable,
             IEnumerable,
             Json,
-            SqlCommand,
+            PostgreSqlCommand,
             JArray
         }
     }

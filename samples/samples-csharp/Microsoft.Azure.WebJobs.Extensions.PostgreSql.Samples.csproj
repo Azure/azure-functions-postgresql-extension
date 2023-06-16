@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Sdk.Functions"/>
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" />
   </ItemGroup>
 
   <ItemGroup>

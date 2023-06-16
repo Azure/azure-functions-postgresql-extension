@@ -12,7 +12,7 @@ using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common;
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamples
 {
     /// <summary>
-    /// This shows an example of a SQL Input binding that queries from a SQL View named ProductNames.
+    /// This shows an example of a PostgreSQL Input binding that queries from a PostgreSQL View named ProductNames.
     /// </summary>
     public static class GetProductNamesView
     {

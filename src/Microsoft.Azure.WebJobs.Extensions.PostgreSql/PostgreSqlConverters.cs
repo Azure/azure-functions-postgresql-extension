@@ -15,44 +15,39 @@ using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlBindingCons
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
-    internal class PGSqlConverters
+    internal class PostgreSqlConverters
     {
-        internal class PGSqlConverter : IConverter<PostgreSqlAttribute, NpgsqlCommand>
+        internal class PostgreSqlConverter : IConverter<PostgreSqlAttribute, NpgsqlCommand>
         {
             private readonly IConfiguration _configuration;
 
             /// <summary>
-            /// Initializes a new instance of the <see cref="PGSqlConverter"/> class.
+            /// Initializes a new instance of the <see cref="PostgreSqlConverter"/> class.
             /// </summary>
             /// <param name="configuration"></param>
             /// <exception cref="ArgumentNullException">
             /// Thrown if the configuration is null
             /// </exception>
-            public PGSqlConverter(IConfiguration configuration)
+            public PostgreSqlConverter(IConfiguration configuration)
             {
-                Console.WriteLine("PGSqlConverter Constructor");
-                this._configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+                _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             }
 
             /// <summary>
-            /// Creates a SqlCommand containing a SQL connection and the SQL query and parameters specified in attribute.
-            /// The user can open the connection in the SqlCommand and use it to read in the results of the query themselves.
+            /// Creates a NpgsqlCommand containing a PostgreSQL connection and the PostgreSQL query and parameters specified in attribute.
+            /// The user can open the connection in the NpgsqlCommand and use it to read in the results of the query themselves.
             /// </summary>
             /// <param name="attribute">
-            /// Contains the SQL query and parameters as well as the information necessary to build the SQL Connection
+            /// Contains the PostgreSQL query and parameters as well as the information necessary to build the PostgreSQL Connection
             /// </param>
-            /// <returns>The SqlCommand</returns>
+            /// <returns>The NpgsqlCommand</returns>
             public NpgsqlCommand Convert(PostgreSqlAttribute attribute)
             {
-
-                Console.WriteLine("Converting to NpgsqlCommand" + attribute.CommandText);
                 return PostgreSqlBindingUtilities.BuildCommand(attribute, CreateConnection(attribute.ConnectionStringSetting));
-
             }
 
-            public NpgsqlConnection CreateConnection(string connectionString)
+            public static NpgsqlConnection CreateConnection(string connectionString)
             {
-                Console.WriteLine("CreateConnection");
                 NpgsqlConnection connection = new NpgsqlConnection(connectionString);
                 return connection;
             }
@@ -77,15 +72,15 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             /// </exception>
             public PostgreSqlGenericsConverter(IConfiguration configuration, ILogger logger)
             {
-                this._configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-                this._logger = logger;
+                _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+                _logger = logger;
             }
 
             /// <summary>
-            /// Opens a SqlConnection, reads in the data from the user's database, and returns it as a list of POCOs.
+            /// Opens a NpgSqlConnection, reads in the data from the user's database, and returns it as a list of POCOs.
             /// </summary>
             /// <param name="attribute">
-            /// Contains the information necessary to establish a SqlConnection, and the query to be executed on the database
+            /// Contains the information necessary to establish a NpgSqlConnection, and the query to be executed on the database
             /// </param>
             /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
             /// <returns>An IEnumerable containing the rows read from the user's database in the form of the user-defined POCO</returns>
@@ -93,22 +88,48 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 try
                 {
-                    string json = await this.BuildItemFromAttributeAsync(attribute, ConvertType.IEnumerable);
+                    string json = await BuildItemFromAttributeAsync(attribute, ConvertType.IEnumerable);
                     return Utils.JsonDeserializeObject<IEnumerable<T>>(json);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("ConvertAsync Exception " + ex.Message);
-                    Console.WriteLine("ConvertAsync Exception " + ex.StackTrace);
+                    _logger.LogError(ex, "ConvertAsync Exception");
                     throw;
                 }
             }
 
             /// <summary>
-            /// Opens a SqlConnection, reads in the data from the user's database, and returns it as a JSON-formatted string.
+            /// Opens a NpgSqlConnection, reads in the data from the user's database, and returns it as a list of POCOs.
+            /// </summary>
+            /// <param name="query">
+            /// The query to be executed on the database
+            /// </param>
+            /// <param name="attribute">
+            /// Contains the information necessary to establish a NpgSqlConnection
+            /// </param>
+            /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
+            /// <returns>An IEnumerable containing the rows read from the user's database in the form of the user-defined POCO</returns>
+            public async Task<IEnumerable<T>> ConvertAsync(string query, PostgreSqlAttribute attribute, CancellationToken cancellationToken)
+            {
+                try
+                {
+                    PostgreSqlAttribute queryAttribute = new PostgreSqlAttribute(query, attribute.ConnectionStringSetting);
+
+                    string json = await BuildItemFromAttributeAsync(queryAttribute, ConvertType.IEnumerable);
+                    return Utils.JsonDeserializeObject<IEnumerable<T>>(json);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "ConvertAsync Exception");
+                    throw;
+                }
+            }
+
+            /// <summary>
+            /// Opens a NpgSqlConnection, reads in the data from the user's database, and returns it as a JSON-formatted string.
             /// </summary>
             /// <param name="attribute">
-            /// Contains the information necessary to establish a SqlConnection, and the query to be executed on the database
+            /// Contains the information necessary to establish a NpgSqlConnection, and the query to be executed on the database
             /// </param>
             /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
             /// <returns>
@@ -120,19 +141,18 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 try
                 {
-                    return await this.BuildItemFromAttributeAsync(attribute, ConvertType.Json);
+                    return await BuildItemFromAttributeAsync(attribute, ConvertType.Json);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("ConvertAsync Exception " + ex.Message);
-
+                    _logger.LogError(ex, "ConvertAsync Exception");
                     throw;
                 }
             }
 
             /// <summary>
             /// Extracts the <see cref="PostgreSqlAttribute.ConnectionStringSetting"/> in attribute and uses it to establish a connection
-            /// to the SQL database. (Must be virtual for mocking the method in unit tests)
+            /// to the PostgreSQL database. (Must be virtual for mocking the method in unit tests)
             /// </summary>
             /// <param name="attribute">
             /// The binding attribute that contains the name of the connection string app setting and query.
@@ -143,55 +163,44 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             /// <returns></returns>
             public virtual async Task<string> BuildItemFromAttributeAsync(PostgreSqlAttribute attribute, ConvertType type)
             {
-                using (NpgsqlConnection connection = PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, this._configuration))
-                // Ideally, we would like to move away from using SqlDataAdapter both here and in the
-                // SqlAsyncCollector since it does not support asynchronous operations.
-                using (var adapter = new NpgsqlDataAdapter())
-                using (NpgsqlCommand command = PostgreSqlBindingUtilities.BuildCommand(attribute, connection))
+                using NpgsqlConnection connection = PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, _configuration);
+                // Ideally, we would like to move away from using NpgsqlDataAdapter both here and in the
+                // PostgreSqlAsyncCollector since it does not support asynchronous operations.
+                using var adapter = new NpgsqlDataAdapter();
+                using NpgsqlCommand command = PostgreSqlBindingUtilities.BuildCommand(attribute, connection);
+                adapter.SelectCommand = command;
+                await connection.OpenAsyncWithSqlErrorHandling(CancellationToken.None);
+                var dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                _logger.LogInformation($"{dataTable.Rows.Count} row(s) queried from database: {connection.Database} using Command: {command.CommandText}");
+                // Serialize any DateTime objects in UTC format
+                var jsonSerializerSettings = new JsonSerializerSettings()
                 {
-                    Console.WriteLine(command.CommandType + "\n" + command.CommandText);
-                    adapter.SelectCommand = command;
-                    await connection.OpenAsyncWithSqlErrorHandling(CancellationToken.None);
-                    var dataTable = new DataTable();
-                    adapter.Fill(dataTable);
-                    this._logger.LogInformation($"{dataTable.Rows.Count} row(s) queried from database: {connection.Database} using Command: {command.CommandText}");
-                    // Serialize any DateTime objects in UTC format
-                    var jsonSerializerSettings = new JsonSerializerSettings()
-                    {
-                        DateFormatString = ISO_8061_DATETIME_FORMAT
-                    };
-                    return Utils.JsonSerializeObject(dataTable, jsonSerializerSettings);
-                }
+                    DateFormatString = ISO_8061_DATETIME_FORMAT
+                };
+                return Utils.JsonSerializeObject(dataTable, jsonSerializerSettings);
 
             }
 
             IAsyncEnumerable<T> IConverter<PostgreSqlAttribute, IAsyncEnumerable<T>>.Convert(PostgreSqlAttribute attribute)
             {
-                /*
-                    IAsyncEnumerable,
-                    IEnumerable,
-                    Json,
-                    SqlCommand,
-                    JArray
-                */
-
                 try
                 {
-                    var asyncEnumerable = new PostgreSqlAsyncEnumerable<T>(PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, this._configuration), attribute);
+                    var asyncEnumerable = new PostgreSqlAsyncEnumerable<T>(PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, _configuration), attribute);
                     return asyncEnumerable;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Convert Exception " + ex.Message);
+                    _logger.LogError(ex, "Convert Exception");
                     throw;
                 }
             }
 
             /// <summary>
-            /// Opens a SqlConnection, reads in the data from the user's database, and returns it as JArray.
+            /// Opens a NpgSqlConnection, reads in the data from the user's database, and returns it as JArray.
             /// </summary>
             /// <param name="attribute">
-            /// Contains the information necessary to establish a SqlConnection, and the query to be executed on the database
+            /// Contains the information necessary to establish a NpgSqlConnection, and the query to be executed on the database
             /// </param>
             /// <param name="cancellationToken">The cancellationToken is not used in this method</param>
             /// <returns>JArray containing the rows read from the user's database in the form of the user-defined POCO</returns>
@@ -199,12 +208,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 try
                 {
-                    string json = await this.BuildItemFromAttributeAsync(attribute, ConvertType.JArray);
+                    string json = await BuildItemFromAttributeAsync(attribute, ConvertType.JArray);
                     return JArray.Parse(json);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("ConvertAsync Exception " + ex.Message);
+                    _logger.LogError(ex, "Error converting to JArray");
                     throw;
                 }
             }

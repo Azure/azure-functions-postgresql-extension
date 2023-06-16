@@ -1,7 +1,7 @@
-﻿CREATE TABLE [ProductsWithMultiplePrimaryColumnsAndIdentity] (
-	[ProductId] [int] NOT NULL IDENTITY(1,1),
-	[ExternalId] [int] NOT NULL,
-	[Name] [nvarchar](100) NULL,
-	[Cost] [int] NULL,
+﻿CREATE TABLE ProductsWithMultiplePrimaryColumnsAndIdentity (
+	ProductId INT GENERATED ALWAYS AS IDENTITY,
+	ExternalId INT NOT NULL,
+	Name VARCHAR(100),
+	Cost INT,
 	PRIMARY KEY (ProductId, ExternalId)
-)
+);
