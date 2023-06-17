@@ -79,7 +79,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 // Because we remove empty entries, we will ignore any commas that appear at the beginning/end of the parameter list,
                 // as well as extra commas that appear between parameter pairs.
-                // I.e., ",,@param1=param1,,@param2=param2,,," will be parsed just like "@param1=param1,@param2=param2" is.
                 string[] paramPairs = parameters.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string pair in paramPairs)
@@ -98,20 +97,22 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                         throw new ArgumentException("Parameter name must start with \"@\", i.e. \"@param1=param1,@param2=param2\"");
                     }
 
+                    NpgsqlParameter parameter = new NpgsqlParameter(items[0], NpgsqlDbType.Text);
 
-                    if (items[1].Equals("null", StringComparison.OrdinalIgnoreCase))
+                    if (items.Length == 1 || string.IsNullOrEmpty(items[1]))
                     {
-                        NpgsqlParameter parameter = new NpgsqlParameter(items[0], NpgsqlDbType.Text)
-                        {
-                            Value = DBNull.Value
-                        }; // change NpgsqlDbType to appropriate type
-                        command.Parameters.Add(parameter);
+                        parameter.Value = string.Empty; // handle as empty string
+                    }
+                    else if (items[1].Equals("null", StringComparison.OrdinalIgnoreCase))
+                    {
+                        parameter.Value = DBNull.Value; // handle as null
                     }
                     else
                     {
-                        command.Parameters.Add(new NpgsqlParameter(items[0], items[1]));
+                        parameter.Value = items[1]; // assign the value
                     }
 
+                    command.Parameters.Add(parameter);
                 }
             }
         }
@@ -205,7 +206,21 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <exception cref="InvalidOperationException">Thrown if an error occurred that we want to wrap with more information</exception>
         internal static async Task OpenAsyncWithSqlErrorHandling(this NpgsqlConnection connection, CancellationToken cancellationToken)
         {
-            await connection.OpenAsync(cancellationToken);
+            try
+            {
+                await connection.OpenAsync(cancellationToken);
+
+                // make sure that the connection is actually open
+                if (connection.State != ConnectionState.Open)
+                {
+                    throw new InvalidOperationException("The connection is not open after the OpenAsync call completed.");
+                }
+            }
+            catch (NpgsqlException ex)
+            {
+                // Specific error handling can be added here.
+                throw new InvalidOperationException("An error occurred when attempting to open the connection.", ex);
+            }
         }
 
         /// <summary>
