@@ -15,6 +15,8 @@ using NpgsqlTypes;
 using MoreLinq;
 using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
 using System.Linq;
+using System.Diagnostics;
+using System.IO;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -29,6 +31,18 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         private readonly List<T> _rows = new List<T>();
 
         private IEnumerable<Column> _columns;
+
+        private string[] _primaryKeys;
+        private DateTime _lastRetrievedColumns = DateTime.MinValue;
+        private readonly TimeSpan _columnRefreshInterval = TimeSpan.FromMinutes(5);
+
+        private const int _batchSize = 1000;
+
+        private readonly PropertyInfo[] _generic_properties;
+
+        private BatchInsertCommandComponents _commandComponents;
+
+        private string _fullBatchCommandText;
 
 
         /// <summary>
@@ -69,6 +83,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 _logger.LogError("Failed to open the database connection.");
                 throw new InvalidOperationException("Connection is not open");
             }
+
+            _generic_properties = typeof(T).GetProperties();
         }
 
         /// <summary>
@@ -102,69 +118,79 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             return new NpgsqlConnection(connectionString);
         }
 
-        private NpgsqlCommand CreateBatchInsertCommand(string table, IEnumerable<T> batch, NpgsqlConnection conn)
+        private BatchInsertCommandComponents CreateReusableCommandComponents(string table, string[] primaryKeys, int maxBatchSize)
         {
-            var properties = typeof(T).GetProperties();
-            var sqlCommandBatch = new StringBuilder();
-            var parameters = new List<NpgsqlParameter>();
-            int itemIndex = 0;
-
-            // Generate primary keys clause
-            var primaryKeys = _columns.Where(c => c.IsPrimaryKey == "true").Select(c => c.ColumnName).ToArray();
-            var pkConflictClause = string.Join(", ", primaryKeys);
-
-            foreach (T item in batch)
+            BatchInsertCommandComponents components = new BatchInsertCommandComponents
             {
-                var sqlCommand = new StringBuilder($"INSERT INTO {table} (");
-                var sqlCommandValues = new StringBuilder(" VALUES (");
-                var sqlCommandConflict = new StringBuilder($" ON CONFLICT ({pkConflictClause}) DO UPDATE SET ");
-
-                foreach (var property in properties)
+                // create insert clause
+                InsertClause = $"INSERT INTO {table} ({string.Join(", ", _generic_properties.Select(p => p.Name))}) VALUES ",
+                ConflictClause = primaryKeys.Length == 0 ? "" : $" ON CONFLICT ({string.Join(", ", primaryKeys)}) DO UPDATE SET "
+            };
+            foreach (var property in _generic_properties)
+            {
+                if (!primaryKeys.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
                 {
-                    var value = property.GetValue(item);
-                    if (value == null)
-                    {
-                        continue;
-                    }
-
-                    sqlCommand.Append($"{property.Name}, ");
-                    sqlCommandValues.Append($"@{property.Name}{itemIndex}, ");
-
-                    // Only append to conflict statement if it's not a primary key
-                    if (!primaryKeys.Contains(property.Name))
-                    {
-                        sqlCommandConflict.Append($"{property.Name} = EXCLUDED.{property.Name}, ");
-                    }
-
-                    parameters.Add(new NpgsqlParameter($"{property.Name}{itemIndex}", value));
+                    components.ConflictClause += $"{property.Name} = EXCLUDED.{property.Name}, ";
                 }
+            }
+            components.ConflictClause = components.ConflictClause.TrimEnd(',', ' ');
 
-                sqlCommand.Length -= 2; // Remove trailing comma and space
-                sqlCommandValues.Length -= 2; // Remove trailing comma and space
-                sqlCommandConflict.Length -= 2; // Remove trailing comma and space
+            // now generate a max batch size values clause
+            components.ValuesClause = GenerateValuesClause(maxBatchSize);
 
-                sqlCommand.Append(')');
-                sqlCommandValues.Append(')');
-                sqlCommand.Append(sqlCommandValues);
+            return components;
+        }
 
-                if (primaryKeys.Length > 0) // Only append conflict clause if there are primary keys
-                {
-                    sqlCommand.Append(sqlCommandConflict);
-                }
+        private string GenerateValuesClause(int len)
+        {
+            StringBuilder valuesClause = new StringBuilder();
 
-                sqlCommand.Append("; ");
-
-                sqlCommandBatch.Append(sqlCommand);
-
-                itemIndex++;
+            for (int i = 0; i < len; i++)
+            {
+                valuesClause.Append('(');
+                valuesClause.Append(string.Join(", ", _generic_properties.Select(p => $"@{p.Name}{i}")));
+                valuesClause.Append("), ");
             }
 
-            var command = new NpgsqlCommand(sqlCommandBatch.ToString(), conn);
+            return valuesClause.ToString().TrimEnd(',', ' ');
+        }
 
-            parameters.ForEach(p => command.Parameters.Add(p));
+        private NpgsqlCommand CreateBatchInsertCommand(IEnumerable<T> batch, BatchInsertCommandComponents components)
+        {
+
+            NpgsqlCommand command = new NpgsqlCommand();
+
+            if (batch.Count() == _batchSize)
+            {
+                command.CommandText = _fullBatchCommandText;
+            }
+            else
+            {
+                command.CommandText = $"{components.InsertClause} {GenerateValuesClause(batch.Count())} {components.ConflictClause}";
+            }
+
+            //now add parameters
+            command.Parameters.AddRange(CreateParameters(batch));
 
             return command;
         }
+
+        private Array CreateParameters(IEnumerable<T> batch)
+        {
+            List<NpgsqlParameter> parameters = new List<NpgsqlParameter>();
+            int i = 0;
+            foreach (T item in batch)
+            {
+                foreach (var property in _generic_properties)
+                {
+                    parameters.Add(new NpgsqlParameter($"@{property.Name}{i}", property.GetValue(item)));
+                }
+                i++;
+            }
+
+            return parameters.ToArray();
+        }
+
 
         /// <summary>
         /// </summary>
@@ -178,7 +204,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 if (_rows.Count != 0)
                 {
-                    _columns = await GetColumnPropertiesAsync(_attribute, _configuration); //TODO move to initialization
+                    await SetColumnData();
+                    // TODO make a validity check that we can upsert
+                    RunValidityCheck();
                     await UpsertRowsAsync(_rows, _attribute, _configuration);
                     _rows.Clear();
                 }
@@ -186,6 +214,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while trying to flush the rows.");
+                _logger.LogError(ex.StackTrace);
                 throw;
             }
             finally
@@ -194,11 +223,45 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             }
         }
 
+        private void RunValidityCheck()
+        {
+            var columnNames = _columns.Select(c => c.ColumnName);
+
+            // check that we can upsert
+            // throw an exception if we can't
+
+            // make sure that the properties of T match the columns in the table
+            foreach (var property in _generic_properties)
+            {
+                if (!columnNames.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"The property {property.Name} does not exist in the table {_attribute.CommandText}.");
+                }
+            }
+
+
+        }
+
+        private async Task SetColumnData()
+        {
+            // if we haven't retrieved the columns yet, or if column data is expired, get them again
+            if (_columns == null || _lastRetrievedColumns.Add(_columnRefreshInterval) < DateTime.Now)
+            {
+                Stopwatch stopwatch = new Stopwatch();
+                _columns = await GetColumnPropertiesAsync(_attribute, _configuration);
+                _primaryKeys = _columns.Where(c => c.IsPrimaryKey == "true").Select(c => c.ColumnName).ToArray();
+                _lastRetrievedColumns = DateTime.Now;
+                stopwatch.Stop();
+                _logger.LogInformation($"Cache Miss: Retrieved column data in {stopwatch.ElapsedMilliseconds} ms.");
+            }
+
+        }
+
         private async Task<IEnumerable<Column>> GetColumnPropertiesAsync(PostgreSqlAttribute attribute, IConfiguration configuration)
         {
             PostgreSqlGenericsConverter<Column> converter = new PostgreSqlGenericsConverter<Column>(_configuration, _logger);
-            string columnPropertyQuery = $"SELECT a.attname AS \"ColumnName\", format_type(a.atttypid, a.atttypmod) AS \"DataType\", CASE WHEN a.attnum = ANY(i.indkey) THEN TRUE ELSE FALSE END AS \"IsPrimaryKey\" FROM pg_attribute a LEFT JOIN pg_index i ON a.attrelid = i.indrelid WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '{attribute.CommandText}'::regclass;"; // TODO: use parameters instead of string interpolation for security
-            // print the query
+            string columnPropertyQuery = $"SELECT a.attname AS \"ColumnName\", format_type(a.atttypid, a.atttypmod) AS \"DataType\", CASE WHEN a.attnum = ANY(i.indkey) THEN TRUE ELSE FALSE END AS \"IsPrimaryKey\" FROM pg_attribute a LEFT JOIN pg_index i ON a.attrelid = i.indrelid WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '{attribute.CommandText}'::regclass;";
+            // could query the database for a list of the tables and use that as a whitelist
             IEnumerable<Column> columns = await converter.ConvertAsync(columnPropertyQuery, _attribute, new CancellationToken());
 
             return columns;
@@ -206,20 +269,28 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
         private async Task UpsertRowsAsync(IList<T> rows, PostgreSqlAttribute attribute, IConfiguration configuration)
         {
+            Stopwatch upsert_stopwatch = Stopwatch.StartNew();
             using NpgsqlConnection connection = CreateConnection();
             await connection.OpenAsync();
             string fullTableName = attribute.CommandText;
+
+            // create the reusable command components if they don't exist
+            _commandComponents ??= CreateReusableCommandComponents(_attribute.CommandText, _primaryKeys, _batchSize);
+
+            _fullBatchCommandText ??= $"{_commandComponents.InsertClause} {_commandComponents.ValuesClause} {_commandComponents.ConflictClause}";
+
 
             try
             {
                 // Starting the transaction.
                 using var transaction = await connection.BeginTransactionAsync();
-                int batchSize = 1000;
+
 
                 // Partition the rows into batches.
-                foreach (IEnumerable<T> batch in rows.Batch(batchSize))
+                foreach (IEnumerable<T> batch in rows.Batch(_batchSize))
                 {
-                    using NpgsqlCommand command = CreateBatchInsertCommand(fullTableName, batch, connection);
+                    using NpgsqlCommand command = CreateBatchInsertCommand(batch, _commandComponents);
+                    command.Connection = connection;
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -230,6 +301,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 _logger.LogError(ex, "An error occurred while upserting rows.");
                 throw;
+            }
+            finally
+            {
+                upsert_stopwatch.Stop();
+                _logger.LogInformation($"Upserted {rows.Count} rows in {upsert_stopwatch.ElapsedMilliseconds} ms.");
             }
         }
 
@@ -249,6 +325,19 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             return $"ColumnName: {ColumnName}, DataType: {DataType}, IsPrimaryKey: {IsPrimaryKey}";
         }
+    }
+
+    internal class BatchInsertCommandComponents
+    {
+        public string InsertClause { get; set; }
+        public string ValuesClause { get; set; }
+        public string ConflictClause { get; set; }
+
+        public override string ToString()
+        {
+            return $"InsertClause: {InsertClause}, ValuesClause: {ValuesClause}, ConflictClause: {ConflictClause}";
+        }
+
     }
 
 }
