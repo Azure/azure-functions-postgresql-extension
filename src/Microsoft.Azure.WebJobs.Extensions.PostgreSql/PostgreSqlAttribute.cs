@@ -53,7 +53,7 @@ namespace Microsoft.Azure.WebJobs
         /// The attributes specified in the connection string are listed here
         /// https://docs.microsoft.com/dotnet/api/microsoft.data.sqlclient.sqlconnection.connectionstring
         /// For example, to create a connection to the "TestDB" located at the URL "test.database.windows.net" using a User ID and password,
-        /// create a ConnectionStringSetting with a name like SqlServerAuthentication. The value of the SqlServerAuthentication app setting
+        /// create a ConnectionStringSetting with a name like PostgreSqlServerAuthentication. The value of the PostgreSqlServerAuthentication app setting
         /// would look like "Data Source=test.database.windows.net;Database=TestDB;User ID={userid};Password={password}".
         /// </summary>
         [ConnectionString]

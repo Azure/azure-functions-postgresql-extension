@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>PostgreSQL binding extension for Azure Functions</Description>
     <Company>Microsoft</Company>
     <Authors>Microsoft</Authors>
@@ -25,11 +25,13 @@
     <PackageReference Include="Microsoft.NET.Sdk.Functions" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="morelinq" />
+    <PackageReference Include="System.Threading.Channels" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="System.Runtime.Caching" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.AspNetCore.Http" />
     <PackageReference Include="xunit" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" />
   </ItemGroup>
 
   

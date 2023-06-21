@@ -2,16 +2,17 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Channels;
 using Microsoft.Azure.WebJobs.Description;
-using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.WebJobs.Logging;
-using System.Reflection;
-using System.Diagnostics;
-using Newtonsoft.Json;
+using Npgsql;
+using Microsoft.Azure.WebJobs.Host.Bindings;
+using System.Collections.Generic;
 using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
@@ -53,15 +54,48 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             ILogger logger = this._loggerFactory.CreateLogger(LogCategories.Bindings);
             var inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            // inputOutputRule.BindToInput<string>(new PostgreSqlBindingConverter(this));
 
-            // BindingRule<PostgreSqlAttribute> inputOutputRule = context.AddBindingRule<PostgreSqlAttribute>();
-            // var converter = new PostgreSqlConverter(this._configuration);
-            // inputOutputRule.BindToInput(converter);
-            // inputOutputRule.BindToInput<string>(typeof(PostgreSqlGenericsConverter<string>), this._configuration, logger);
-            inputOutputRule.BindToCollector<OpenType.Poco>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
-            // inputOutputRule.BindToInput<OpenType>(typeof(PostgreSqlGenericsConverter<>), this._configuration, logger);
+            var converter = new PostgreSqlConverter(this._configuration);
+            inputOutputRule.BindToInput(converter);
 
+            inputOutputRule.BindToInput<string>(typeof(PostgreSqlGenericsConverter<string>), this._configuration, logger);
+
+
+            inputOutputRule.BindToCollector<PGSQLObjectOpenType>(typeof(PostgreSqlAsyncCollectorBuilder<>), this._configuration, logger);
+
+            inputOutputRule.BindToInput<OpenType>(typeof(PostgreSqlGenericsConverter<>), this._configuration, logger);
+
+
+        }
+
+
+
+
+    }
+
+    /// <summary>
+    /// Wrapper around OpenType to receive data correctly from output bindings (not as byte[])
+    /// This can be used for general "T --> JObject" bindings.
+    /// The exact definition here comes from the WebJobs v1.0 Queue binding.
+    /// refer https://github.com/Azure/azure-webjobs-sdk/blob/dev/src/Microsoft.Azure.WebJobs.Host/Bindings/OpenType.cs#L390
+    /// </summary>
+    internal class PGSQLObjectOpenType : OpenType.Poco
+    {
+        // return true when type is an "System.Object" to enable Object binding.
+        public override bool IsMatch(Type type, OpenTypeMatchContext context)
+        {
+            if (type.IsGenericType
+                && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return false;
+            }
+
+            if (type.FullName == "System.Object")
+            {
+                return true;
+            }
+
+            return base.IsMatch(type, context);
         }
     }
 }

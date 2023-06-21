@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
@@ -22,5 +24,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             return new PostgreSqlAsyncCollector<T>(this._configuration, attribute, this._logger);
         }
+
     }
 }

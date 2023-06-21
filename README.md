@@ -1,4 +1,4 @@
-# Azure SQL bindings for Azure Functions
+# Azure PostgreSQL bindings for Azure Functions
 
 ## Introduction
 
@@ -6,9 +6,7 @@ This repository contains the Azure PostgreSQL bindings for Azure Functions exten
 
 ### Output Bindings
 
-
 ## Telemetry
-
 
 ## Privacy Statement
 
