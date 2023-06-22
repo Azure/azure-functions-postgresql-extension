@@ -1,10 +1,19 @@
-{
+﻿{
     "$schema": "https://raw.githubusercontent.com/DotNetAnalyzers/StyleCopAnalyzers/master/StyleCop.Analyzers/StyleCop.Analyzers/Settings/stylecop.schema.json",
     "settings": {
         "documentationRules": {
             "documentInterfaces": true,
             "documentInternalElements": true,
-            "documentPrivateElements": true
+            "documentPrivateElements": true,
+            "companyName": "Microsoft Corporation",
+            "copyrightText": "Copyright (c) {companyName}. All rights reserved.\nLicensed under the {licenseName} License. See {licenseFile} in the project root for license information.",
+            "variables": {
+                "licenseName": "MIT",
+                "licenseFile": "License.txt"
+            }
+        },
+        "orderingRules": {
+            "usingDirectivesPlacement": "outsideNamespace"
         }
     }
 }
