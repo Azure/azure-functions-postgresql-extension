@@ -219,7 +219,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <returns>The task that will be completed when the database is verified.</returns>
         public static async Task VerifyDatabaseSupported(NpgsqlConnection connection, ILogger logger, CancellationToken cancellationToken)
         {
-            // do nothing for now
+            // TODO implement or remove
             await Task.Yield();
         }
 
@@ -290,15 +290,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Checks whether an exception is a fatal PostgreSqlException. It is deteremined to be fatal
-        /// if the Class value of the Exception is 20 or higher, see
-        /// https://learn.microsoft.com/dotnet/api/microsoft.data.sqlclient.sqlexception#remarks
-        /// for details.
+        /// Checks whether an exception is a fatal PostgreSqlException.
         /// </summary>
         /// <param name="e">The exception to check.</param>
         /// <returns>True if the exception is a fatal PostgreSqlClientException, false otherwise.</returns>
         internal static bool IsFatalPostgreSqlException(this Exception e)
         {
+            // TODO: Implement or delete
             throw new NotImplementedException();
         }
 

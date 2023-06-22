@@ -171,10 +171,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             BatchInsertCommandComponents components = new BatchInsertCommandComponents
             {
-                // create insert clause
+                // create insert clause: INSERT INTO table (column1, column2, ...) VALUES
+                // create conflict clause: ON CONFLICT (primaryKey1, primaryKey2, ...) DO UPDATE SET
                 InsertClause = $"INSERT INTO {table} ({string.Join(", ", this.genericProperties.Select(p => p.Name))}) VALUES ",
                 ConflictClause = primaryKeys.Length == 0 ? string.Empty : $" ON CONFLICT ({string.Join(", ", primaryKeys)}) DO UPDATE SET ",
             };
+
+            // add to conflict clause all columns that are not primary keys
             foreach (var property in this.genericProperties)
             {
                 if (!primaryKeys.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
@@ -185,16 +188,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             components.ConflictClause = components.ConflictClause.TrimEnd(',', ' ');
 
-            // now generate a max batch size values clause
+            // now generate a max batch size values clause for reuse when handling batches
             components.ValuesClause = this.GenerateValuesClause(maxBatchSize);
 
             return components;
         }
 
         /// <summary>
-        /// Generates a values clause for a SQL query.
+        /// Generates a parameterized values clause for a SQL query.
+        /// Format is as follows: (@columnA1, @columnB2, @columnC3), (@columnA4, @columnB5, @columnC6), ...
         /// </summary>
-        /// <param name="len">Number of value sets to generate.</param>
+        /// <param name="len">Number of parameterized rows to generate.</param>
         /// <returns>Values clause as a string.</returns>
         private string GenerateValuesClause(int len)
         {
@@ -220,16 +224,21 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             NpgsqlCommand command = new NpgsqlCommand();
 
+            // if we have a full batch, we can use the full command text
+            // this will be the case for all batches except the last one
             if (batch.Count() == BatchSize)
             {
                 command.CommandText = this.fullBatchCommandText;
             }
+
+            // otherwise, we need to generate a new command text using the batch size
+            // this may be the case for the last batch only
             else
             {
                 command.CommandText = $"{components.InsertClause} {this.GenerateValuesClause(batch.Count())} {components.ConflictClause}";
             }
 
-            // now add parameters
+            // now add the actual values as parameters
             command.Parameters.AddRange(this.CreateParameters(batch));
 
             return command;
@@ -238,7 +247,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <summary>
         /// Creates a list of parameters for a NpgsqlCommand.
         /// </summary>
-        /// <param name="batch">Batch of items to be inserted.</param>
+        /// <param name="batch">Batch of items to create params for.</param>
         /// <returns>Array of NpgsqlParameters.</returns>
         private Array CreateParameters(IEnumerable<T> batch)
         {
@@ -278,7 +287,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Sets the column data of the table.
+        /// Retrieves column properties of a table and caches them for future use.
         /// </summary>
         /// <returns>A Task.</returns>
         private async Task SetColumnData()
@@ -296,17 +305,20 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Retrieves column properties of a table.
+        /// Retrieves metadata about each column in a table.
         /// </summary>
         /// <param name="attribute">PostgreSQL table attribute.</param>
         /// <param name="configuration">Application configuration.</param>
-        /// <returns>An IEnumerable of Column objects.</returns>
+        /// <returns>An Task of IEnumerable of Column objects.</returns>
         private async Task<IEnumerable<Column>> GetColumnPropertiesAsync(PostgreSqlAttribute attribute, IConfiguration configuration)
         {
             PostgreSqlGenericsConverter<Column> converter = new PostgreSqlGenericsConverter<Column>(this.configuration, this.logger);
+
+            // sql query to retrieve column properties
+            // gets column name, data type, and whether or not it's a primary key
             string columnPropertyQuery = $"SELECT a.attname AS \"ColumnName\", format_type(a.atttypid, a.atttypmod) AS \"DataType\", CASE WHEN a.attnum = ANY(i.indkey) THEN TRUE ELSE FALSE END AS \"IsPrimaryKey\" FROM pg_attribute a LEFT JOIN pg_index i ON a.attrelid = i.indrelid WHERE a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '{attribute.CommandText}'::regclass;";
 
-            // could query the database for a list of the tables and use that as a whitelist
+            // TODO could query the database for a list of the tables and use that as a whitelist
             IEnumerable<Column> columns = await converter.ConvertAsync(columnPropertyQuery, this.attribute, CancellationToken.None);
 
             return columns;
@@ -324,11 +336,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             Stopwatch upsert_stopwatch = Stopwatch.StartNew();
             using NpgsqlConnection connection = this.CreateConnection();
             await connection.OpenAsync();
+
+            // table name is the full command text
             string fullTableName = attribute.CommandText;
 
             // create the reusable command components if they don't exist
             this.commandComponents ??= this.CreateReusableCommandComponents(this.attribute.CommandText, this.primaryKeys, BatchSize);
 
+            // create a command text for the full batch if it doesn't exist
             this.fullBatchCommandText ??= $"{this.commandComponents.InsertClause} {this.commandComponents.ValuesClause} {this.commandComponents.ConflictClause}";
 
             try

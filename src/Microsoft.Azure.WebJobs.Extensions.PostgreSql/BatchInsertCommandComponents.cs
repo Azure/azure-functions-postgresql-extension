@@ -6,7 +6,7 @@
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
     /// <summary>
-    /// Class for storing the components of a batch insert command.
+    /// Class for storing the components of a batch insert command so that parts may be reused.
     /// </summary>
     internal class BatchInsertCommandComponents
     {
