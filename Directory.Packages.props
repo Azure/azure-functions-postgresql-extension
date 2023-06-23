@@ -9,6 +9,7 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
     <PackageVersion Include="morelinq" Version="3.3.2" />
     <PackageVersion Include="Npgsql" Version="7.0.4" />
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.1.118" />
     <PackageVersion Include="System.Drawing.Common" Version="5.0.3" />
     <PackageVersion Include="System.Runtime.Caching" Version="5.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
