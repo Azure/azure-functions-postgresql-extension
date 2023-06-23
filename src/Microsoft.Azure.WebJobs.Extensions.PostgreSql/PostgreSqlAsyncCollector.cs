@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -82,6 +83,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 throw new InvalidOperationException("Connection is not open");
             }
 
+            // make sure that the table is sanitized, if not throw error
+            VerifyCleanTableName(attribute.CommandText);
+
             this.genericProperties = typeof(T).GetProperties();
         }
 
@@ -148,6 +152,21 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         public void Dispose()
         {
             this.rowLock.Dispose();
+        }
+
+        /// <summary>
+        /// Verifies that the table name is valid to prevent SQL injection.
+        /// </summary>
+        /// <param name="tableName">Table name to be verified.</param>
+        /// <exception cref="ArgumentException">Thrown if the table name contains invalid characters.</exception>
+        private static void VerifyCleanTableName(string tableName)
+        {
+            // make sure only allowed characters are in the fully qualified table name
+            // allowed characters are alphanumeric, underscores, and periods
+            if (!Regex.IsMatch(tableName, @"^[a-zA-Z0-9_\.]+$"))
+            {
+                throw new ArgumentException("The table name contains invalid characters. Only alphanumeric, underscores, and periods are allowed.");
+            }
         }
 
         /// <summary>
