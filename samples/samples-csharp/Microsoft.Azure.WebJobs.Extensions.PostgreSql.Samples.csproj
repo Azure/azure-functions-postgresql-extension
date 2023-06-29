@@ -7,10 +7,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Sdk.Functions" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Microsoft.Azure.WebJobs.Extensions.PostgreSql\Microsoft.Azure.WebJobs.Extensions.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\Microsoft.Azure.WebJobs.Extensions.PostgreSql.csproj" />
   </ItemGroup>
 
   <ItemGroup>
