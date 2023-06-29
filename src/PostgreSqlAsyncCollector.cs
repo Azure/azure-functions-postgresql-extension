@@ -36,7 +36,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         private readonly SemaphoreSlim rowLock = new SemaphoreSlim(1, 1);
         private readonly TimeSpan columnRefreshInterval = TimeSpan.FromMinutes(5);
         private readonly List<T> rows = new List<T>();
-        private readonly PropertyInfo[] genericProperties;
         private IEnumerable<Column> columns;
 
         private string[] primaryKeys;
@@ -85,8 +84,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             // make sure that the table is sanitized, if not throw error
             VerifyCleanTableName(attribute.CommandText);
-
-            this.genericProperties = typeof(T).GetProperties();
         }
 
         /// <summary>
@@ -121,15 +118,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// automatically. </returns>
         public async Task FlushAsync(CancellationToken cancellationToken = default)
         {
+            Console.WriteLine("This is a test - This is new code!");
             await this.rowLock.WaitAsync(cancellationToken);
             try
             {
                 if (this.rows.Count != 0)
                 {
                     await this.SetColumnData();
-
-                    // TODO make a validity check that we can upsert
-                    this.RunValidityCheck();
                     await this.UpsertRowsAsync(this.rows, this.attribute, this.configuration);
                     this.rows.Clear();
                 }
@@ -194,48 +189,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             string connectionString = this.attribute.ConnectionStringSetting;
             return new NpgsqlConnection(connectionString);
-        }
-
-        /// <summary>
-        /// Creates a list of parameters for a NpgsqlCommand.
-        /// </summary>
-        /// <param name="batch">Batch of items to create params for.</param>
-        /// <returns>Array of NpgsqlParameters.</returns>
-        private Array CreateParameters(IEnumerable<T> batch)
-        {
-            List<NpgsqlParameter> parameters = new List<NpgsqlParameter>();
-            int i = 0;
-            foreach (T item in batch)
-            {
-                foreach (var property in this.genericProperties)
-                {
-                    parameters.Add(new NpgsqlParameter($"@{property.Name}{i}", property.GetValue(item)));
-                }
-
-                i++;
-            }
-
-            return parameters.ToArray();
-        }
-
-        /// <summary>
-        /// Checks the validity of table schema against the properties of T. Throws an exception if the table schema is invalid.
-        /// </summary>
-        private void RunValidityCheck()
-        {
-            var columnNames = this.columns.Select(c => c.ColumnName);
-
-            // check that we can upsert
-            // throw an exception if we can't
-
-            // make sure that the properties of T match the columns in the table
-            foreach (var property in this.genericProperties)
-            {
-                if (!columnNames.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"The property {property.Name} does not exist in the table {this.attribute.CommandText}.");
-                }
-            }
         }
 
         /// <summary>
