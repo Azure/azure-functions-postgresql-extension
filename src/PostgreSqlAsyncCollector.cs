@@ -118,7 +118,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// automatically. </returns>
         public async Task FlushAsync(CancellationToken cancellationToken = default)
         {
-            Console.WriteLine("This is a test - This is new code!");
             await this.rowLock.WaitAsync(cancellationToken);
             try
             {
@@ -168,17 +167,32 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// Creates a NpgsqlParameter for a batch of rows.
         /// </summary>
         /// <param name="batch">Batch of rows to be upserted.</param>
-        /// <param name="columns">Columns of the table.</param>
         /// <returns>A NpgsqlParameter.</returns>
-        private static NpgsqlParameter CreateBatchValueParameter(IEnumerable<T> batch, IEnumerable<Column> columns)
+        private static NpgsqlParameter CreateBatchValueParameter(IEnumerable<T> batch)
         {
-            // TODO reverse row order
-            // TODO use columns to determine order of properties
             string batchJsonData = Utils.JsonSerializeObject(batch);
 
-            Console.WriteLine(batchJsonData);
+            Console.WriteLine("@jsonData Param Value:\n" + batchJsonData);
 
             return new NpgsqlParameter("@jsonData", batchJsonData);
+        }
+
+        /// <summary>
+        /// Gets the column names from PropertyInfo when T is POCO
+        /// and when T is JObject, parses the data to get column names.
+        /// </summary>
+        /// <param name="row"> Sample row used to get the column names when item is a JObject.</param>
+        /// <returns>List of column names in the table.</returns>
+        private static IEnumerable<string> GetColumnNamesFromItem(T row)
+        {
+            if (typeof(T) == typeof(JObject))
+            {
+                var jsonObj = JObject.Parse(row.ToString());
+                Dictionary<string, string> dictObj = jsonObj.ToObject<Dictionary<string, string>>();
+                return dictObj.Keys;
+            }
+
+            return typeof(T).GetProperties().Select(prop => prop.Name);
         }
 
         /// <summary>
@@ -246,9 +260,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             string fullTableName = attribute.CommandText;
 
             // create a command text for the full batch if it doesn't exist
-            this.fullCommandText ??= this.GenerateInsertText(fullTableName, this.columns);
+            this.fullCommandText ??= this.GenerateInsertText(fullTableName, this.columns, this.rows.First());
 
-            Console.WriteLine(this.fullCommandText);
+            Console.WriteLine("Full Command Text:\n" + this.fullCommandText);
 
             try
             {
@@ -263,7 +277,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 {
                     // insert the parameters into the command and execute
                     command.Parameters.Clear();
-                    command.Parameters.Add(CreateBatchValueParameter(batch, this.columns));
+                    command.Parameters.Add(CreateBatchValueParameter(batch));
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -287,13 +301,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// </summary>
         /// <param name="fullTableName">Full name of the table.</param>
         /// <param name="columns">Columns of the table.</param>
+        /// <param name="row">Sample row used to get the column names of the actual data being sent.</param>
         /// <returns>Insert text.</returns>
-        private string GenerateInsertText(string fullTableName, IEnumerable<Column> columns)
+        private string GenerateInsertText(string fullTableName, IEnumerable<Column> columns, T row)
         {
-            string csColumnNameTypes = string.Join(", ", columns.Select(c => $"\"{c.ColumnName}\" {c.DataType}"));
-            string csColumnNames = string.Join(", ", columns.Select(c => $"\"{c.ColumnName}\""));
+            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(row);
+            IEnumerable<Column> filteredColumns = columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
+            string csColumnNameTypes = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\" {c.DataType}"));
+            string csColumnNames = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\""));
             string csPrimaryKeyColumns = string.Join(", ", this.primaryKeys.Select(c => $"\"{c}\""));
-            Column[] nonPrimaryKeyColumns = columns.Where(c => !this.primaryKeys.Contains(c.ColumnName)).ToArray();
+            Column[] nonPrimaryKeyColumns = filteredColumns.Where(c => !this.primaryKeys.Contains(c.ColumnName)).ToArray();
             string excludeStatement = string.Join(", ", nonPrimaryKeyColumns.Select(c => $"\"{c.ColumnName}\" = excluded.\"{c.ColumnName}\""));
 
             string insertText = $@"WITH cte AS (SELECT * FROM json_to_recordset(@jsonData::json) AS ({csColumnNameTypes})) INSERT INTO {fullTableName}({csColumnNames}) SELECT {csColumnNames} FROM cte ON CONFLICT ({csPrimaryKeyColumns}) DO UPDATE SET {excludeStatement};";
