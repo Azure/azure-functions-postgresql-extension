@@ -20,7 +20,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
     /// <summary>
     /// Contains methods for converting from an Attribute to the information a user needs for the input binding.
     /// </summary>
-    public class PostgreSqlConverters
+    internal class PostgreSqlConverters
     {
         /// <summary>
         /// Converts a PostgreSqlAttribute to a NpgsqlCommand.

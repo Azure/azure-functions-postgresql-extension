@@ -4,7 +4,6 @@
 // </copyright>
 
 using System;
-using System.Runtime.CompilerServices;
 using Microsoft.Azure.WebJobs.Description;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Config;
@@ -13,14 +12,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
 
-[assembly: InternalsVisibleTo("Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests")]
-
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 {
     /// <summary>
     /// Exposes PGSQL input and output bindings.
     /// </summary>
-    [Microsoft.Azure.WebJobs.Description.Extension("postgresql")]
+    [Extension("postgresql")]
     internal class PostgreSqlBindingConfigProvider : IExtensionConfigProvider
     {
         private readonly IConfiguration configuration;
