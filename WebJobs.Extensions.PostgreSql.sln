@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33530.505
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.WebJobs.Extensions.PostgreSql", "src\Microsoft.Azure.WebJobs.Extensions.PostgreSql\Microsoft.Azure.WebJobs.Extensions.PostgreSql.csproj", "{BC2A3E88-EEB8-40B6-BFAE-60E7DAAF8C71}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.WebJobs.Extensions.PostgreSql", "src\Microsoft.Azure.WebJobs.Extensions.PostgreSql.csproj", "{BC2A3E88-EEB8-40B6-BFAE-60E7DAAF8C71}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.WebJobs.Extensions.PostgreSQL.Tests", "test\Microsoft.Azure.WebJobs.Extensions.PostgreSQL.Tests\Microsoft.Azure.WebJobs.Extensions.PostgreSQL.Tests.csproj", "{6DF317B1-6BB9-4962-87F4-27C4BAE3574A}"
 	ProjectSection(ProjectDependencies) = postProject
