@@ -15,6 +15,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MoreLinq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Npgsql;
 using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
 
@@ -34,15 +36,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         private readonly SemaphoreSlim rowLock = new SemaphoreSlim(1, 1);
         private readonly TimeSpan columnRefreshInterval = TimeSpan.FromMinutes(5);
         private readonly List<T> rows = new List<T>();
-        private readonly PropertyInfo[] genericProperties;
         private IEnumerable<Column> columns;
 
         private string[] primaryKeys;
         private DateTime lastRetrievedColumns = DateTime.MinValue;
 
-        private BatchInsertCommandComponents commandComponents;
-
-        private string fullBatchCommandText;
+        private string fullCommandText;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PostgreSqlAsyncCollector{T}"/> class.
@@ -85,8 +84,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             // make sure that the table is sanitized, if not throw error
             VerifyCleanTableName(attribute.CommandText);
-
-            this.genericProperties = typeof(T).GetProperties();
         }
 
         /// <summary>
@@ -127,9 +124,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 if (this.rows.Count != 0)
                 {
                     await this.SetColumnData();
-
-                    // TODO make a validity check that we can upsert
-                    this.RunValidityCheck();
                     await this.UpsertRowsAsync(this.rows, this.attribute, this.configuration);
                     this.rows.Clear();
                 }
@@ -170,6 +164,38 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
+        /// Creates a NpgsqlParameter for a batch of rows.
+        /// </summary>
+        /// <param name="batch">Batch of rows to be upserted.</param>
+        /// <returns>A NpgsqlParameter.</returns>
+        private static NpgsqlParameter CreateBatchValueParameter(IEnumerable<T> batch)
+        {
+            string batchJsonData = Utils.JsonSerializeObject(batch);
+
+            Console.WriteLine("@jsonData Param Value:\n" + batchJsonData);
+
+            return new NpgsqlParameter("@jsonData", batchJsonData);
+        }
+
+        /// <summary>
+        /// Gets the column names from PropertyInfo when T is POCO
+        /// and when T is JObject, parses the data to get column names.
+        /// </summary>
+        /// <param name="row"> Sample row used to get the column names when item is a JObject.</param>
+        /// <returns>List of column names in the table.</returns>
+        private static IEnumerable<string> GetColumnNamesFromItem(T row)
+        {
+            if (typeof(T) == typeof(JObject))
+            {
+                var jsonObj = JObject.Parse(row.ToString());
+                Dictionary<string, string> dictObj = jsonObj.ToObject<Dictionary<string, string>>();
+                return dictObj.Keys;
+            }
+
+            return typeof(T).GetProperties().Select(prop => prop.Name);
+        }
+
+        /// <summary>
         /// Creates a NpgsqlConnection using the connection string specified in the PostgreSQL binding.
         /// </summary>
         /// <returns> A NpgsqlConnection. </returns>
@@ -177,132 +203,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         {
             string connectionString = this.attribute.ConnectionStringSetting;
             return new NpgsqlConnection(connectionString);
-        }
-
-        /// <summary>
-        /// Generates a BatchInsertCommandComponents object for batch operations.
-        /// </summary>
-        /// <param name="table">The target table name.</param>
-        /// <param name="primaryKeys">The primary key columns for conflict resolution.</param>
-        /// <param name="maxBatchSize">The maximum rows per batch insert.</param>
-        /// <returns>A BatchInsertCommandComponents object.</returns>
-        private BatchInsertCommandComponents CreateReusableCommandComponents(string table, string[] primaryKeys, int maxBatchSize)
-        {
-            BatchInsertCommandComponents components = new BatchInsertCommandComponents
-            {
-                // create insert clause: INSERT INTO table (column1, column2, ...) VALUES
-                // create conflict clause: ON CONFLICT (primaryKey1, primaryKey2, ...) DO UPDATE SET
-                InsertClause = $"INSERT INTO {table} ({string.Join(", ", this.genericProperties.Select(p => p.Name))}) VALUES ",
-                ConflictClause = primaryKeys.Length == 0 ? string.Empty : $" ON CONFLICT ({string.Join(", ", primaryKeys)}) DO UPDATE SET ",
-            };
-
-            // add to conflict clause all columns that are not primary keys
-            foreach (var property in this.genericProperties)
-            {
-                if (!primaryKeys.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    components.ConflictClause += $"{property.Name} = EXCLUDED.{property.Name}, ";
-                }
-            }
-
-            components.ConflictClause = components.ConflictClause.TrimEnd(',', ' ');
-
-            // now generate a max batch size values clause for reuse when handling batches
-            components.ValuesClause = this.GenerateValuesClause(maxBatchSize);
-
-            return components;
-        }
-
-        /// <summary>
-        /// Generates a parameterized values clause for a SQL query.
-        /// Format is as follows: (@columnA1, @columnB2, @columnC3), (@columnA4, @columnB5, @columnC6), ...
-        /// </summary>
-        /// <param name="len">Number of parameterized rows to generate.</param>
-        /// <returns>Values clause as a string.</returns>
-        private string GenerateValuesClause(int len)
-        {
-            StringBuilder valuesClause = new StringBuilder();
-
-            for (int i = 0; i < len; i++)
-            {
-                valuesClause.Append('(');
-                valuesClause.Append(string.Join(", ", this.genericProperties.Select(p => $"@{p.Name}{i}")));
-                valuesClause.Append("), ");
-            }
-
-            return valuesClause.ToString().TrimEnd(',', ' ');
-        }
-
-        /// <summary>
-        /// Creates a NpgsqlCommand for batch insert operations.
-        /// </summary>
-        /// <param name="batch">Batch of items to be inserted.</param>
-        /// <param name="components">Command components for batch insert.</param>
-        /// <returns>A NpgsqlCommand object.</returns>
-        private NpgsqlCommand CreateBatchInsertCommand(IEnumerable<T> batch, BatchInsertCommandComponents components)
-        {
-            NpgsqlCommand command = new NpgsqlCommand();
-
-            // if we have a full batch, we can use the full command text
-            // this will be the case for all batches except the last one
-            if (batch.Count() == BatchSize)
-            {
-                command.CommandText = this.fullBatchCommandText;
-            }
-
-            // otherwise, we need to generate a new command text using the batch size
-            // this may be the case for the last batch only
-            else
-            {
-                command.CommandText = $"{components.InsertClause} {this.GenerateValuesClause(batch.Count())} {components.ConflictClause}";
-            }
-
-            // now add the actual values as parameters
-            command.Parameters.AddRange(this.CreateParameters(batch));
-
-            return command;
-        }
-
-        /// <summary>
-        /// Creates a list of parameters for a NpgsqlCommand.
-        /// </summary>
-        /// <param name="batch">Batch of items to create params for.</param>
-        /// <returns>Array of NpgsqlParameters.</returns>
-        private Array CreateParameters(IEnumerable<T> batch)
-        {
-            List<NpgsqlParameter> parameters = new List<NpgsqlParameter>();
-            int i = 0;
-            foreach (T item in batch)
-            {
-                foreach (var property in this.genericProperties)
-                {
-                    parameters.Add(new NpgsqlParameter($"@{property.Name}{i}", property.GetValue(item)));
-                }
-
-                i++;
-            }
-
-            return parameters.ToArray();
-        }
-
-        /// <summary>
-        /// Checks the validity of table schema against the properties of T. Throws an exception if the table schema is invalid.
-        /// </summary>
-        private void RunValidityCheck()
-        {
-            var columnNames = this.columns.Select(c => c.ColumnName);
-
-            // check that we can upsert
-            // throw an exception if we can't
-
-            // make sure that the properties of T match the columns in the table
-            foreach (var property in this.genericProperties)
-            {
-                if (!columnNames.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"The property {property.Name} does not exist in the table {this.attribute.CommandText}.");
-                }
-            }
         }
 
         /// <summary>
@@ -359,22 +259,25 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             // table name is the full command text
             string fullTableName = attribute.CommandText;
 
-            // create the reusable command components if they don't exist
-            this.commandComponents ??= this.CreateReusableCommandComponents(this.attribute.CommandText, this.primaryKeys, BatchSize);
-
             // create a command text for the full batch if it doesn't exist
-            this.fullBatchCommandText ??= $"{this.commandComponents.InsertClause} {this.commandComponents.ValuesClause} {this.commandComponents.ConflictClause}";
+            this.fullCommandText ??= this.GenerateInsertText(fullTableName, this.columns, this.rows.First());
+
+            Console.WriteLine("Full Command Text:\n" + this.fullCommandText);
 
             try
             {
                 // Starting the transaction.
                 using var transaction = await connection.BeginTransactionAsync();
 
+                // Create the baseline command.
+                NpgsqlCommand command = new NpgsqlCommand(this.fullCommandText, connection, transaction);
+
                 // Partition the rows into batches.
                 foreach (IEnumerable<T> batch in rows.Batch(BatchSize))
                 {
-                    using NpgsqlCommand command = this.CreateBatchInsertCommand(batch, this.commandComponents);
-                    command.Connection = connection;
+                    // insert the parameters into the command and execute
+                    command.Parameters.Clear();
+                    command.Parameters.Add(CreateBatchValueParameter(batch));
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -391,6 +294,28 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 upsert_stopwatch.Stop();
                 this.logger.LogInformation($"Upserted {rows.Count} rows in {upsert_stopwatch.ElapsedMilliseconds} ms.");
             }
+        }
+
+        /// <summary>
+        /// Creates the insert text for json to be inserted into a table.
+        /// </summary>
+        /// <param name="fullTableName">Full name of the table.</param>
+        /// <param name="columns">Columns of the table.</param>
+        /// <param name="row">Sample row used to get the column names of the actual data being sent.</param>
+        /// <returns>Insert text.</returns>
+        private string GenerateInsertText(string fullTableName, IEnumerable<Column> columns, T row)
+        {
+            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(row);
+            IEnumerable<Column> filteredColumns = columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
+            string csColumnNameTypes = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\" {c.DataType}"));
+            string csColumnNames = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\""));
+            string csPrimaryKeyColumns = string.Join(", ", this.primaryKeys.Select(c => $"\"{c}\""));
+            Column[] nonPrimaryKeyColumns = filteredColumns.Where(c => !this.primaryKeys.Contains(c.ColumnName)).ToArray();
+            string excludeStatement = string.Join(", ", nonPrimaryKeyColumns.Select(c => $"\"{c.ColumnName}\" = excluded.\"{c.ColumnName}\""));
+
+            string insertText = $@"WITH cte AS (SELECT * FROM json_to_recordset(@jsonData::json) AS ({csColumnNameTypes})) INSERT INTO {fullTableName}({csColumnNames}) SELECT {csColumnNames} FROM cte ON CONFLICT ({csPrimaryKeyColumns}) DO UPDATE SET {excludeStatement};";
+
+            return insertText;
         }
     }
 }

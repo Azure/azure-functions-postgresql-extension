@@ -1,0 +1,29 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get"
+      ],
+      "route": "getproducts/{cost}"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "products",
+      "type": "postgresql",
+      "direction": "in",
+      "commandText": "select * from Products where \"Cost\" = @Cost::int",
+      "commandType": "Text",
+      "parameters": "@Cost={cost}",
+      "connectionStringSetting": "PostgreSqlConnectionString"
+    }
+  ],
+  "disabled": false
+}
