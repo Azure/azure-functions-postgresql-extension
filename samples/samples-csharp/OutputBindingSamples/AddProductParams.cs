@@ -9,7 +9,7 @@ using Microsoft.Azure.WebJobs.Extensions.PostgreSql;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common;
 
 
-namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamples
+namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.OutputBindingSamples
 {
     public static class AddProductParams
     {

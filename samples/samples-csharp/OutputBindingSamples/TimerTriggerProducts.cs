@@ -13,7 +13,7 @@ using System;
 
 
 
-namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamples
+namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.OutputBindingSamples
 {
     public static class TimerTriggerProducts
     {

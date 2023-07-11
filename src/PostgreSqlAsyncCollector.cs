@@ -87,6 +87,21 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
+        /// Verifies that the table name is valid to prevent SQL injection.
+        /// </summary>
+        /// <param name="tableName">Table name to be verified.</param>
+        /// <exception cref="ArgumentException">Thrown if the table name contains invalid characters.</exception>
+        public static void VerifyCleanTableName(string tableName)
+        {
+            // make sure only allowed characters are in the fully qualified table name
+            // allowed characters are alphanumeric, underscores, and periods
+            if (tableName.Equals(string.Empty) || !Regex.IsMatch(tableName, @"^[a-zA-Z0-9_\.]+$"))
+            {
+                throw new ArgumentException("The table name contains invalid characters. Only alphanumeric, underscores, and periods are allowed.");
+            }
+        }
+
+        /// <summary>
         /// Adds an item to this collector that is processed in a batch along with all other items added via
         /// AddAsync when <see cref="FlushAsync"/> is called. Each item is interpreted as a row to be added to the PostgreSQL table
         /// specified in the PostgreSQL Binding.
@@ -149,21 +164,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         }
 
         /// <summary>
-        /// Verifies that the table name is valid to prevent SQL injection.
-        /// </summary>
-        /// <param name="tableName">Table name to be verified.</param>
-        /// <exception cref="ArgumentException">Thrown if the table name contains invalid characters.</exception>
-        private static void VerifyCleanTableName(string tableName)
-        {
-            // make sure only allowed characters are in the fully qualified table name
-            // allowed characters are alphanumeric, underscores, and periods
-            if (!Regex.IsMatch(tableName, @"^[a-zA-Z0-9_\.]+$"))
-            {
-                throw new ArgumentException("The table name contains invalid characters. Only alphanumeric, underscores, and periods are allowed.");
-            }
-        }
-
-        /// <summary>
         /// Creates a NpgsqlParameter for a batch of rows.
         /// </summary>
         /// <param name="batch">Batch of rows to be upserted.</param>
@@ -201,8 +201,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <returns> A NpgsqlConnection. </returns>
         private NpgsqlConnection CreateConnection()
         {
-            string connectionString = this.attribute.ConnectionStringSetting;
-            return new NpgsqlConnection(connectionString);
+            return PostgreSqlBindingUtilities.BuildConnection(this.attribute.ConnectionStringSetting, this.configuration);
         }
 
         /// <summary>

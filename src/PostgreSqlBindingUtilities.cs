@@ -35,7 +35,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// <returns>The built connection. </returns>
         public static NpgsqlConnection BuildConnection(string connectionStringSetting, IConfiguration configuration)
         {
-            return new NpgsqlConnection(connectionStringSetting);
+            return new NpgsqlConnection(GetConnectionString(connectionStringSetting, configuration));
         }
 
         /// <summary>
@@ -64,11 +64,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             }
 
             string connectionString = configuration.GetConnectionStringOrSetting(connectionStringSetting);
+
             if (string.IsNullOrEmpty(connectionString))
             {
-                throw new ArgumentException(connectionString == null ? $"ConnectionStringSetting '{connectionStringSetting}' is missing in your function app settings, please add the setting with a valid PostgreSQL connection string." :
+                throw new ArgumentException(connectionString == null ? $"ConnectionStringSetting '{connectionStringSetting}' is misssing in your function app settings, please add the setting with a valid PostgreSQL connection string." :
                 $"ConnectionStringSetting '{connectionStringSetting}' is empty in your function app settings, please update the setting with a valid PostgreSQL connection string.");
             }
+
+            Console.WriteLine($"Using PostgreSQL connection string '{connectionString}'");
 
             return connectionString;
         }

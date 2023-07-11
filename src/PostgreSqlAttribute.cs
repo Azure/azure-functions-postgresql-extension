@@ -63,7 +63,6 @@ namespace Microsoft.Azure.WebJobs
         /// create a ConnectionStringSetting with a name like PostgreSqlServerAuthentication. The value of the PostgreSqlServerAuthentication app setting
         /// would look like "Data Source=test.database.windows.net;Database=TestDB;User ID={userid};Password={password}".
         /// </summary>
-        [ConnectionString]
         public string ConnectionStringSetting { get; set; }
 
         /// <summary>
