@@ -39,6 +39,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the constructor of PostgreSqlAsyncCollector with null arguments.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Output")]
         public void TestNullCollectorConstructorArguments()
         {
             var arg = new PostgreSqlAttribute(string.Empty, "PostgreSqlConnectionString");
@@ -50,6 +52,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the VerifyCleanTableName method with valid table names.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Output")]
         public void TestVerifyCleanTableName_ValidNames()
         {
             // Arrange
@@ -66,6 +70,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the VerifyCleanTableName method with edge cases.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Output")]
         public void TestVerifyCleanTableName_EdgeCases()
         {
             // Arrange
@@ -83,6 +89,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the VerifyCleanTableName method with invalid table names.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Output")]
         public void TestVerifyCleanTableName_InvalidNames()
         {
             // Arrange

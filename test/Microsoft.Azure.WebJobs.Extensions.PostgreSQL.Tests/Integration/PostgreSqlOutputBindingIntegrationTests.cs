@@ -35,6 +35,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
         [PostgreSqlInlineData(1, "Test", 5)]
         [PostgreSqlInlineData(0, "", 0)]
         [PostgreSqlInlineData(-500, "ABCD", 580)]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
         public void AddProductTest(int id, string name, int cost, SupportedLanguages lang)
         {
             this.StartFunctionHost(nameof(AddProduct), lang);
@@ -64,6 +66,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
         [PostgreSqlInlineData(1, "Test", 5)]
         [PostgreSqlInlineData(0, "", 0)]
         [PostgreSqlInlineData(-500, "ABCD", 580)]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
         public void AddProductParamsTest(int id, string name, int cost, SupportedLanguages lang)
         {
             this.StartFunctionHost(nameof(AddProductParams), lang);

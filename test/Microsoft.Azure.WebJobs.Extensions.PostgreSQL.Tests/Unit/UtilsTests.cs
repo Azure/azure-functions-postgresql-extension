@@ -23,6 +23,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// <param name="expectedValue">The expected Boolean result of the conversion.</param>
         /// <param name="defaultValue">The default Boolean value to be used if the environment variable is not set or cannot be converted.</param>
         [Theory]
+        [Trait("Category", "Unit")]
         [InlineData(null, false)] // Doesn't exist, get default value
         [InlineData(null, true, true)] // Doesn't exist, get default value (set explicitly)
         [InlineData("1", true)]
@@ -51,6 +52,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// <param name="expectedValue">The expected Boolean result of the conversion.</param>
         /// <param name="defaultValue">The default Boolean value to be used if the configuration setting is not set or cannot be converted.</param>
         [Theory]
+        [Trait("Category", "Unit")]
         [InlineData(null, false)] // Doesn't exist, get default value
         [InlineData(null, true, true)] // Doesn't exist, get default value (set explicitly)
         [InlineData("1", true)]

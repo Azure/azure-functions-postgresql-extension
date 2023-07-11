@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common;
+using Newtonsoft.Json.Linq;
 using Npgsql;
 using Xunit;
 using Xunit.Abstractions;
@@ -83,7 +84,37 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
         private void SetupDatabase()
         {
             NpgsqlConnectionStringBuilder connectionStringBuilder;
-            string connectionString = Environment.GetEnvironmentVariable("TEST_CONNECTION_STRING");
+            string json;
+            try
+            {
+                // Read the connection string from local.settings.json
+                json = File.ReadAllText("./test.settings.json");
+            }
+            catch (FileNotFoundException)
+            {
+                string files = string.Join(", ", Directory.GetFiles("./"));
+                throw new FileNotFoundException("test.settings.json not found. Please create a test.settings.json file in the test project root with the following contents:\n{\n  \"PostgreSqlConnectionString\": \"<your connection string>\"\n}\n" + files);
+            }
+            JObject settings;
+            try
+            {
+                settings = JObject.Parse(json);
+            }
+            catch (Exception e)
+            {
+                throw new Exception("test.settings.json is not valid JSON. Please make sure it is valid JSON and try again.", e);
+            }
+            string connectionString;
+            try
+            {
+                connectionString = (string)settings["PostgreSqlConnectionString"];
+            }
+            catch (Exception e)
+            {
+                throw new Exception("test.settings.json does not contain a PostgreSqlConnectionString property. Please add one and try again.", e);
+            }
+
+
             if (connectionString != null)
             {
                 this.MasterConnectionString = connectionString;
@@ -91,7 +122,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             }
             else
             {
-                throw new InvalidOperationException("TEST_CONNECTION_STRING environment variable must be set to a valid PostgreSql connection string.");
+                throw new InvalidOperationException("PostgreSqlConnectionString in local.settings.json must be set to a valid PostgreSql connection string.");
             }
 
             // Create database

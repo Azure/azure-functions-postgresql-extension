@@ -41,6 +41,9 @@
     </ItemGroup>
     <Copy SourceFiles="@(_JsCopyItems)" DestinationFolder="$(OutDir)\PostgreSqlExtensionSamples\JavaScript\%(RecursiveDir)" />
     <Message Text="Copied JS Samples output to $(OutDir)\PostgreSqlExtensionSamples\JavaScript" Importance="high" />
+    <!-- copy test.settings.json to the output folder -->
+    <Copy SourceFiles="test.settings.json" DestinationFolder="$(OutDir)" />
+    <Message Text="Copied test.settings.json to $(OutDir)" Importance="high" />
   </Target>
 
 </Project>
