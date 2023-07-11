@@ -92,8 +92,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             }
             catch (FileNotFoundException)
             {
-                string files = string.Join(", ", Directory.GetFiles("./"));
-                throw new FileNotFoundException("test.settings.json not found. Please create a test.settings.json file in the test project root with the following contents:\n{\n  \"PostgreSqlConnectionString\": \"<your connection string>\"\n}\n" + files);
+                throw new FileNotFoundException("test.settings.json not found. Please create a test.settings.json file in the test project root with the following contents:\n{\n  \"PostgreSqlConnectionString\": \"<your connection string>\"\n}");
             }
             JObject settings;
             try
