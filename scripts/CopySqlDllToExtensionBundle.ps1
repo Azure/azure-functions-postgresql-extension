@@ -1,5 +1,5 @@
 # Run this script from the root of the repository to copy the latest
-# SQL extension dll to the extension bundle. This is required to test
+# PostgreSQL extension dll to the extension bundle. This is required to test
 # the latest extension changes when running samples/test.
 #
 # To revert this run `func GetExtensionBundlePath` manually from the

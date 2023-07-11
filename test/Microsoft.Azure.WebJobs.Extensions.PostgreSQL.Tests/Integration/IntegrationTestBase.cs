@@ -81,13 +81,20 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
         /// <summary>
         /// Sets up a test database for the current test to use.
         /// </summary>
+        /// <remarks>
+        /// Requires a test.settings.json file in the test project root with a PostgreSqlConnectionString property.
+        /// This method will create a new database on the test server for the current test to use.
+        /// It will also create a new connection to the database for the current test to use.
+        /// </remarks>
+        /// <exception cref="FileNotFoundException">Thrown if test.settings.json is not found.</exception>
+
         private void SetupDatabase()
         {
             NpgsqlConnectionStringBuilder connectionStringBuilder;
             string json;
             try
             {
-                // Read the connection string from local.settings.json
+                // Read the connection string from test.settings.json
                 json = File.ReadAllText("./test.settings.json");
             }
             catch (FileNotFoundException)
