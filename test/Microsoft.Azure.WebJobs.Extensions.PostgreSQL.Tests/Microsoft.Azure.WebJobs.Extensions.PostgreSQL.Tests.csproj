@@ -14,9 +14,10 @@
     <PackageReference Include="Moq" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Azure.Core" />
-</ItemGroup>
+  </ItemGroup>
 
-<ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\samples\samples-csharp\Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.csproj" />
     <ProjectReference Include="..\..\src\Microsoft.Azure.WebJobs.Extensions.PostgreSql.csproj" />
   </ItemGroup>

@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
 {

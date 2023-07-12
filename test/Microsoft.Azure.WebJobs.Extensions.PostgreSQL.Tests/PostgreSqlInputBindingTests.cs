@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common;
+
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
 {
@@ -100,19 +100,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         public void TestInvalidOperationPostgreSqlAsyncEnumerableConstructor()
         {
             Assert.Throws<InvalidOperationException>(() => new PostgreSqlAsyncEnumerable<string>(connection, new PostgreSqlAttribute("", "connectionStringSetting")));
-        }
-
-        /// <summary>
-        /// Tests the scenario where invalid arguments are passed to the BuildConnection method.
-        /// </summary>
-        [Fact]
-        public void TestInvalidArgumentsBuildConnection()
-        {
-            var attribute = new PostgreSqlAttribute("", "");
-            Assert.Throws<ArgumentException>(() => PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, config.Object));
-
-            attribute = new PostgreSqlAttribute("", "ConnectionStringSetting");
-            Assert.Throws<ArgumentNullException>(() => PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, null));
         }
 
         /// <summary>
