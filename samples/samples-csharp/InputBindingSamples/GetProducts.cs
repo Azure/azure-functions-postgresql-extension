@@ -17,7 +17,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamp
         public static IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getproducts/{cost}")]
             HttpRequest req,
-            [PostgreSql("select * from Products where Cost = @Cost::int",
+            [PostgreSql("select * from Products where \"Cost\" = @Cost::int",
                 "PostgreSqlConnectionString",
                 parameters: "@Cost={cost}")]
             IEnumerable<Product> products)

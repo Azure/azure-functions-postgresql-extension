@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-
+using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
 {
@@ -17,7 +17,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
     /// </summary>
     public class PostgreSqlInputBindingTests
     {
-    
+
         private static readonly Mock<IConfiguration> config = new();
         private static readonly Mock<ILoggerFactory> loggerFactory = new();
         private static readonly Mock<ILogger> logger = new();
@@ -27,6 +27,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullConfiguration method tests if the constructors of PostgreSqlBindingConfigProvider, PostgreSqlConverter, and PostgreSqlGenericsConverter classes throw an ArgumentNullException when null is passed as a parameter.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullConfiguration()
         {
             Assert.Throws<ArgumentNullException>(() => new PostgreSqlBindingConfigProvider(null, loggerFactory.Object));
@@ -39,6 +41,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullCommandText method tests if the constructor of the PostgreSqlAttribute class throws an ArgumentNullException when null is passed as the command text.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullCommandText()
         {
             Assert.Throws<ArgumentNullException>(() => new PostgreSqlAttribute(null, "connectionStringSetting"));
@@ -48,6 +52,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullConnectionStringSetting method tests if the constructor of the PostgreSqlAttribute class throws an ArgumentNullException when null is passed as the connection string setting.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullConnectionStringSetting()
         {
             Assert.Throws<ArgumentNullException>(() => new PostgreSqlAttribute("SELECT * FROM Products", null));
@@ -57,6 +63,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullContext method tests if the Initialize method of the PostgreSqlBindingConfigProvider class throws an ArgumentNullException when null is passed as the context.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullContext()
         {
             var configProvider = new PostgreSqlBindingConfigProvider(config.Object, loggerFactory.Object);
@@ -67,6 +75,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullBuilder method tests if the AddPostgreSql extension method throws an ArgumentNullException when called on a null IWebJobsBuilder instance.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullBuilder()
         {
             IWebJobsBuilder builder = null;
@@ -77,6 +87,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullCommand method tests if the ParseParameters method of the PostgreSqlBindingUtilities class throws an ArgumentNullException when null is passed as the command.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullCommand()
         {
             Assert.Throws<ArgumentNullException>(() => PostgreSqlBindingUtilities.ParseParameters("", null));
@@ -86,6 +98,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// TestNullArgumentsPostgreSqlAsyncEnumerableConstructor method tests if the constructor of the PostgreSqlAsyncEnumerable class throws an ArgumentNullException when null is passed as any of its arguments.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestNullArgumentsPostgreSqlAsyncEnumerableConstructor()
         {
             Assert.Throws<ArgumentNullException>(() => new PostgreSqlAsyncEnumerable<string>(connection, null));
@@ -97,15 +111,34 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// string setting. It should fail here since we're passing an empty connection string.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestInvalidOperationPostgreSqlAsyncEnumerableConstructor()
         {
             Assert.Throws<InvalidOperationException>(() => new PostgreSqlAsyncEnumerable<string>(connection, new PostgreSqlAttribute("", "connectionStringSetting")));
         }
 
         /// <summary>
+        /// Tests the scenario where invalid arguments are passed to the BuildConnection method.
+        /// </summary>
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
+        public void TestInvalidArgumentsBuildConnection()
+        {
+            var attribute = new PostgreSqlAttribute("", "");
+            Assert.Throws<ArgumentException>(() => PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, config.Object));
+
+            attribute = new PostgreSqlAttribute("", "ConnectionStringSetting");
+            Assert.Throws<ArgumentNullException>(() => PostgreSqlBindingUtilities.BuildConnection(attribute.ConnectionStringSetting, null));
+        }
+
+        /// <summary>
         /// Tests the scenario where an invalid command type is specified.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestInvalidCommandType()
         {
             // Specify an invalid type
@@ -117,6 +150,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the scenario where the default command type is used.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestDefaultCommandType()
         {
             string query = "select * from Products";
@@ -132,6 +167,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the scenario where valid command types are specified.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestValidCommandType()
         {
             string query = "select * from Products";
@@ -151,6 +188,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the scenario where the parameters string is malformed.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestMalformedParametersString()
         {
             var command = new NpgsqlCommand();
@@ -177,6 +216,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Unit
         /// Tests the scenario where the parameters string is well-formed.
         /// </summary>
         [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Binding", "Input")]
         public void TestWellformedParametersString()
         {
             var command = new NpgsqlCommand();

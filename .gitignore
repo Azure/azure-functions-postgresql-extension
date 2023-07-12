@@ -352,6 +352,9 @@ MigrationBackup/
 # Azure Functions localsettings file
 local.settings.json
 
+# Testing settings file
+test.settings.json
+
 # Azurite artifacts
 __blobstorage__
 __queuestorage__

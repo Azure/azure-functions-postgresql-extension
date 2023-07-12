@@ -10,7 +10,7 @@ using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.Common;
 using System.Threading.Tasks;
 
 
-namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.InputBindingSamples
+namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Samples.OutputBindingSamples
 {
     public static class AddProductsAsyncCollector
     {
