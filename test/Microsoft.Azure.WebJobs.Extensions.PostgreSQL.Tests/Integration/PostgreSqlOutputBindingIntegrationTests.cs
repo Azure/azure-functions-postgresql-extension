@@ -150,35 +150,45 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             // If we get here then the test is successful - an exception will be thrown if there were any problems
         }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // [UnsupportedLanguages(SupportedLanguages.JavaScript, SupportedLanguages.PowerShell, SupportedLanguages.Java, SupportedLanguages.OutOfProc, SupportedLanguages.Python)] // Collectors are only available in C#
-        // public void AddProductsCollectorTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductsCollector), lang);
+        /// <summary>
+        /// Tests that output bindings can be used with a collector.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        [UnsupportedLanguages(SupportedLanguages.JavaScript)] // Collectors are only available in C#
+        public void AddProductsCollectorTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductsCollector), lang);
 
-        //     // Function should add 5000 rows to the table
-        //     this.SendOutputGetRequest("addproducts-collector").Wait();
+            // Function should add 5000 rows to the table
+            this.SendOutputGetRequest("addproducts-collector").Wait();
 
-        //     Assert.Equal(5000, this.ExecuteScalar("SELECT COUNT(1) FROM Products"));
-        // }
+            Assert.Equal(5000, (int)(long)this.ExecuteScalar("SELECT COUNT(1) FROM Products"));
+        }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void QueueTriggerProductsTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(QueueTriggerProducts), lang);
+        /// <summary>
+        /// Tests that output bindings can be used with a queue trigger.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void QueueTriggerProductsTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(QueueTriggerProducts), lang);
 
-        //     string uri = $"http://localhost:{this.Port}/admin/functions/QueueTriggerProducts";
-        //     string json = /*lang=json*/ "{ 'input': 'Test Data' }";
+            string uri = $"http://localhost:{this.Port}/admin/functions/QueueTriggerProducts";
+            string json = /*lang=json*/ "{ 'input': 'Test Data' }";
 
-        //     this.SendPostRequest(uri, json).Wait();
+            this.SendPostRequest(uri, json).Wait();
 
-        //     Thread.Sleep(5000);
+            Thread.Sleep(5000);
 
-        //     // Function should add 100 rows
-        //     Assert.Equal(100, this.ExecuteScalar("SELECT COUNT(1) FROM Products"));
-        // }
+            // Function should add 100 rows
+            Assert.Equal(100, (int)(long)this.ExecuteScalar("SELECT COUNT(1) FROM Products"));
+        }
 
         // [Theory]
         // [PostgreSqlInlineData()]
