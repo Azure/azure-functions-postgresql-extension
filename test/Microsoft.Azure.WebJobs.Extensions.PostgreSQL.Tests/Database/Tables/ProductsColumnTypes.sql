@@ -14,7 +14,7 @@
     "Interval" INTERVAL,
     "Json" JSON,
     "Jsonb" JSONB,
-    "Numeric" NUMERIC(5, 2),
+    "Numeric" NUMERIC(7, 2),
     "Real" REAL,
     "Smallint" SMALLINT,
     "Smallserial" SMALLSERIAL,

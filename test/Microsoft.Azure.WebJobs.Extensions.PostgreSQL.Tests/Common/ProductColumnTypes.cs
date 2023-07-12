@@ -32,12 +32,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common
         /// <summary>
         /// The Bit column type represents a binary value.
         /// </summary>
-        public bool Bit { get; set; }
+        public int Bit { get; set; }
 
         /// <summary>
         /// The BitVarying column type represents a binary value with a variable length.
         /// </summary>
-        public BitArray BitVarying { get; set; }
+        public string BitVarying { get; set; }
 
         /// <summary>
         /// The Boolean column type represents a true/false value.
@@ -125,19 +125,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common
         public TimeSpan Time { get; set; }
 
         /// <summary>
-        /// The TimeWithTimeZone column type represents a time of day including time zone.
-        /// </summary>
-        public DateTimeOffset TimeWithTimeZone { get; set; }
-
-        /// <summary>
         /// The Timestamp column type represents a date and time.
         /// </summary>
         public DateTime Timestamp { get; set; }
-
-        /// <summary>
-        /// The TimestampWithTimeZone column type represents a date and time, including time zone.
-        /// </summary>
-        public DateTimeOffset TimestampWithTimeZone { get; set; }
 
         /// <summary>
         /// The Uuid column type represents a universally unique identifier.
@@ -158,8 +148,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common
                     this.Jsonb.ToString() == that.Jsonb.ToString() && this.Numeric == that.Numeric &&
                     this.Real == that.Real && this.Smallint == that.Smallint && this.Smallserial == that.Smallserial &&
                     this.Serial == that.Serial && this.Text == that.Text && this.Time == that.Time &&
-                    this.TimeWithTimeZone == that.TimeWithTimeZone && this.Timestamp == that.Timestamp &&
-                    this.TimestampWithTimeZone == that.TimestampWithTimeZone && this.Uuid == that.Uuid;
+                    this.Timestamp == that.Timestamp &&
+                    this.Uuid == that.Uuid;
             }
             return false;
         }
@@ -167,7 +157,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"[{this.ProductId}, {this.Bigint}, {this.Bit}, {this.Bytea}, {this.Character}, {this.CharacterVarying}, {this.Date}, {this.DoublePrecision}, {this.Integer}, {this.Interval}, {this.Json}, {this.Jsonb}, {this.Numeric}, {this.Real}, {this.Smallint}, {this.Smallserial}, {this.Serial}, {this.Text}, {this.Time}, {this.TimeWithTimeZone}, {this.Timestamp}, {this.TimestampWithTimeZone}, {this.Uuid}]";
+            return $"[{this.ProductId}, {this.Bigint}, {this.Bit}, {this.Bytea}, {this.Character}, {this.CharacterVarying}, {this.Date}, {this.DoublePrecision}, {this.Integer}, {this.Interval}, {this.Json}, {this.Jsonb}, {this.Numeric}, {this.Real}, {this.Smallint}, {this.Smallserial}, {this.Serial}, {this.Text}, {this.Time}, {this.Timestamp}, {this.Uuid}]";
         }
 
         /// <inheritdoc/>

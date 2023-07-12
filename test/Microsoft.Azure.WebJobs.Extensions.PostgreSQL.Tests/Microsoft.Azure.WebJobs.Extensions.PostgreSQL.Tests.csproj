@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Extensions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
-    <PackageReference Include="Microsoft.Azure.Functions.Extensions" />
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Http" />
-    <PackageReference Include="Moq" />
-    <PackageReference Include="Npgsql" />
-    <PackageReference Include="Azure.Core" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
 </ItemGroup>
 
@@ -33,6 +33,7 @@
       <_CSharpCopyItems Include="..\..\samples\samples-csharp\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
     </ItemGroup>
     <Message Text="Copied C# Samples output from ..\..\samples\samples-csharp\bin\$(Configuration)\$(TargetFramework)\**\*.*" Importance="high" />
+
     <Copy SourceFiles="@(_CSharpCopyItems)" DestinationFolder="$(OutDir)\PostgreSqlExtensionSamples\CSharp\%(RecursiveDir)" />
     <Message Text="Copied C# Samples output to $(OutDir)\PostgreSqlExtensionSamples\CSharp" Importance="high" />
     <ItemGroup>

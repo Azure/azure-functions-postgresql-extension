@@ -86,61 +86,69 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             Assert.Equal(cost, this.ExecuteScalar($"select \"Cost\" from Products where \"ProductId\"={id}"));
         }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductArrayTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductsArray), lang);
+        /// <summary>
+        /// Tests that an array of products can be inserted into a table.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductArrayTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductsArray), lang);
 
-        //     // First insert some test data
-        //     this.ExecuteNonQuery("INSERT INTO Products VALUES (1, 'test', 100)");
-        //     this.ExecuteNonQuery("INSERT INTO Products VALUES (2, 'test', 100)");
-        //     this.ExecuteNonQuery("INSERT INTO Products VALUES (3, 'test', 100)");
+            // First insert some test data
+            this.ExecuteNonQuery("INSERT INTO Products VALUES (1, 'test', 100)");
+            this.ExecuteNonQuery("INSERT INTO Products VALUES (2, 'test', 100)");
+            this.ExecuteNonQuery("INSERT INTO Products VALUES (3, 'test', 100)");
 
-        //     Product[] prods = new[]
-        //     {
-        //         new Product()
-        //         {
-        //             ProductId = 1,
-        //             Name = "Cup",
-        //             Cost = 2
-        //         },
-        //         new Product
-        //         {
-        //             ProductId = 2,
-        //             Name = "Glasses",
-        //             Cost = 12
-        //         }
-        //     };
+            Product[] prods = new[]
+            {
+                new Product()
+                {
+                    ProductId = 1,
+                    Name = "Cup",
+                    Cost = 2
+                },
+                new Product
+                {
+                    ProductId = 2,
+                    Name = "Glasses",
+                    Cost = 12
+                }
+            };
 
-        //     this.SendOutputPostRequest("addproducts-array", Utils.JsonSerializeObject(prods)).Wait();
+            this.SendOutputPostRequest("addproducts-array", Utils.JsonSerializeObject(prods)).Wait();
 
-        //     // Function call changes first 2 rows to (1, 'Cup', 2) and (2, 'Glasses', 12)
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(1) FROM Products WHERE Cost = 100"));
-        //     Assert.Equal(2, this.ExecuteScalar("SELECT Cost FROM Products WHERE ProductId = 1"));
-        //     Assert.Equal(2, this.ExecuteScalar("SELECT ProductId FROM Products WHERE Cost = 12"));
-        // }
+            // Function call changes first 2 rows to (1, 'Cup', 2) and (2, 'Glasses', 12)
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(1) FROM Products WHERE \"Cost\" = 100"));
+            Assert.Equal(2, this.ExecuteScalar("SELECT \"Cost\" FROM Products WHERE \"ProductId\" = 1"));
+            Assert.Equal(2, this.ExecuteScalar("SELECT \"ProductId\" FROM Products WHERE \"Cost\" = 12"));
+        }
 
-        // /// <summary>
-        // /// Test compatibility with converting various data types to their respective
-        // /// PostgreSql types.
-        // /// </summary>
-        // /// <param name="lang">The language to run the test against</param>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductColumnTypesTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductColumnTypes), lang, true);
+        /// <summary>
+        /// Test compatibility with converting various data types to their respective
+        /// PostgreSql types.
+        /// </summary>
+        /// <param name="lang">The language to run the test against</param>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
 
-        //     var queryParameters = new Dictionary<string, string>()
-        //     {
-        //         { "productId", "999" }
-        //     };
+        public void AddProductColumnTypesTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductColumnTypes), lang, true);
 
-        //     this.SendOutputGetRequest("addproduct-columntypes", queryParameters).Wait();
+            var queryParameters = new Dictionary<string, string>()
+            {
+                { "productId", "999" }
+            };
 
-        //     // If we get here then the test is successful - an exception will be thrown if there were any problems
-        // }
+            this.SendOutputGetRequest("addproduct-columntypes", queryParameters).Wait();
+
+            // If we get here then the test is successful - an exception will be thrown if there were any problems
+        }
 
         // [Theory]
         // [PostgreSqlInlineData()]

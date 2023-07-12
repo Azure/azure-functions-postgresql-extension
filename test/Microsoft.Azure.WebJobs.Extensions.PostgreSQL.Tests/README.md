@@ -57,7 +57,7 @@ When adding a new integration test for a function follow these steps:
 1.  First decide where the function being used for the test is going to go. If this is demonstrating valid functionality that customers may find useful then it should go under the samples folder. If it is demonstrating an error case or something similar then it should go under the test/Integration folder
 2.  Within either of those folders are a number of sub-folders with the name samples-\<language> or test-\<language>. You will need to make a version of the function for each of the currently supported languages - skipping any that don't apply to your sample (for example if you're verifying a language feature that only exists in one particular language.) These functions should all be functionally identical - given the same input they should return the same output
 3.  The function should have the FunctionName be the same as the class name
-4.  After the functions are created then add the test itself to either SqlInputBindingIntegrationTests.ts or SqlOutputBindingIntegrationTests.ts. See below for the various attributes, parameters and setup that are required for each test
+4.  After the functions are created then add the test itself to either `PostgreSqlInputBindingIntegrationTests.cs` or `PostgreSqlOutputBindingIntegrationTests.cs`. See below for the various attributes, parameters and setup that are required for each test
 
 ### PostgreSqlInlineData attribute:
 
@@ -108,6 +108,16 @@ Use [UnsupportedLanguages] attribute over the test to specify the list of langua
          // test code here
      }
 ```
+
+### Optionally Add Traits
+
+You may want to add traits to categorize tests. For example, if you're adding a test for an input binding, you can add `[Trait("Binding", "Input")]` the test. This will allow you to run all input binding tests by running the following command:
+
+```bash
+dotnet test --filter "Binding=Input"
+```
+
+**Note:** Multiple traits may be added to a test.
 
 ## Troubleshooting Test Failures
 
