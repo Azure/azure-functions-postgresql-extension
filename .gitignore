@@ -353,7 +353,7 @@ MigrationBackup/
 local.settings.json
 
 # Testing settings file
-# test.settings.json
+test.settings.json
 
 # Azurite artifacts
 __blobstorage__
