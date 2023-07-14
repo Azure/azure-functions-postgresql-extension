@@ -266,8 +266,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             // table name is the full command text
             string fullTableName = attribute.CommandText;
 
+            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(this.rows.First());
+            IEnumerable<Column> filteredColumns = this.columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
+            if (!filteredColumns.Any())
+            {
+                string message = $"No property values found in item to upsert. If using query parameters, ensure that the casing of the parameter names and the property names match.";
+                var ex = new InvalidOperationException(message);
+                throw ex;
+            }
+
             // create a command text for the full batch if it doesn't exist
-            this.fullCommandText ??= this.GenerateInsertText(fullTableName, this.columns, this.rows.First());
+            this.fullCommandText ??= this.GenerateInsertText(fullTableName, filteredColumns);
 
             Console.WriteLine("Full Command Text:\n" + this.fullCommandText);
 
@@ -307,13 +316,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// Creates the insert text for json to be inserted into a table.
         /// </summary>
         /// <param name="fullTableName">Full name of the table.</param>
-        /// <param name="columns">Columns of the table.</param>
-        /// <param name="row">Sample row used to get the column names of the actual data being sent.</param>
+        /// <param name="filteredColumns">Columns in the table that are also included in the item.</param>
         /// <returns>Insert text.</returns>
-        private string GenerateInsertText(string fullTableName, IEnumerable<Column> columns, T row)
+        private string GenerateInsertText(string fullTableName, IEnumerable<Column> filteredColumns)
         {
-            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(row);
-            IEnumerable<Column> filteredColumns = columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
             string csColumnNameTypes = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\" {c.DataType}"));
             string csColumnNames = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\""));
             string csPrimaryKeyColumns = string.Join(", ", this.primaryKeys.Select(c => $"\"{c}\""));

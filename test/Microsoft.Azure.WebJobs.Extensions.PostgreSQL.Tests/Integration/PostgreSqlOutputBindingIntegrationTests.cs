@@ -11,6 +11,7 @@ using Xunit.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Common;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
 {
@@ -190,388 +191,326 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             Assert.Equal(100, (int)(long)this.ExecuteScalar("SELECT COUNT(1) FROM Products"));
         }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void TimerTriggerProductsTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(TimerTriggerProducts), lang);
+        /// <summary>
+        /// Tests that output bindings can be used with a timer trigger.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void TimerTriggerProductsTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(TimerTriggerProducts), lang);
 
-        //     // Since this function runs on a schedule (every 5 seconds), we don't need to invoke it.
-        //     // We will wait 6 seconds to guarantee that it has been fired at least once, and check that at least 1000 rows of data has been added.
-        //     Thread.Sleep(6000);
+            // Since this function runs on a schedule (every 5 seconds), we don't need to invoke it.
+            // We will wait 6 seconds to guarantee that it has been fired at least once, and check that at least 1000 rows of data has been added.
+            Thread.Sleep(6000);
 
-        //     int rowsAdded = (int)this.ExecuteScalar("SELECT COUNT(1) FROM Products");
-        //     Assert.True(rowsAdded >= 1000);
-        // }
+            int rowsAdded = (int)(long)this.ExecuteScalar("SELECT COUNT(1) FROM Products");
+            Assert.True(rowsAdded >= 1000);
+        }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductExtraColumnsTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductExtraColumns), lang, true);
+        /// <summary>
+        /// Tests that output bindings can operate when there exists more columns in the object than in the table.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductExtraColumnsTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductExtraColumns), lang, true);
 
-        //     // Since ProductExtraColumns has columns that does not exist in the table,
-        //     // no rows should be added to the table.
-        //     Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-extracolumns").Wait());
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
-        // }
+            // Since ProductExtraColumns has columns that does not exist in the table,
+            // those columns should be ignored and the row should still be added successfully.
+            this.SendOutputGetRequest("addproduct-extracolumns").Wait();
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
+        }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductMissingColumnsTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductMissingColumns), lang, true);
+        /// <summary>
+        /// Tests that output bindings can operate when there exists less columns in the object than in the table.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductMissingColumnsTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductMissingColumns), lang, true);
 
-        //     // Even though the ProductMissingColumns object is missing the Cost column,
-        //     // the row should still be added successfully since Cost can be null.
-        //     this.SendOutputPostRequest("addproduct-missingcolumns", string.Empty).Wait();
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
-        // }
+            // Even though the ProductMissingColumns object is missing the Cost column,
+            // the row should still be added successfully since Cost can be null.
+            this.SendOutputPostRequest("addproduct-missingcolumns", string.Empty).Wait();
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
+        }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductMissingColumnsNotNullTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductMissingColumnsExceptionFunction), lang, true);
+        /// <summary>
+        /// Tests that an exception is thrown when there exists less columns in the object than in the table and the table does not allow null values for the missing columns.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductMissingColumnsNotNullTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductMissingColumnsExceptionFunction), lang, true);
 
-        //     // Since the PostgreSql table does not allow null for the Cost column,
-        //     // inserting a row without a Cost value should throw an Exception.
-        //     Assert.Throws<AggregateException>(() => this.SendOutputPostRequest("addproduct-missingcolumnsexception", string.Empty).Wait());
-        // }
+            // Since the PostgreSql table does not allow null for the Cost column,
+            // inserting a row without a Cost value should throw an Exception.
+            Assert.Throws<AggregateException>(() => this.SendOutputPostRequest("addproduct-missingcolumnsexception", string.Empty).Wait());
+        }
 
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductNoPartialUpsertTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductsNoPartialUpsert), lang, true);
+        /// <summary>
+        /// Makes sure that if there is an issue with one of the rows in a batch, the entire batch is rolled back.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductNoPartialUpsertTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductsNoPartialUpsert), lang, true);
 
-        //     Assert.Throws<AggregateException>(() => this.SendOutputPostRequest("addproducts-nopartialupsert", string.Empty).Wait());
-        //     // No rows should be upserted since there was a row with an invalid value
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsNameNotNull"));
-        // }
+            Assert.Throws<AggregateException>(() => this.SendOutputPostRequest("addproducts-nopartialupsert", string.Empty).Wait());
+            // No rows should be upserted since there was a row with an invalid value
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsNameNotNull"));
+        }
 
-        // /// <summary>
-        // /// Tests that for tables with an identity column we are able to insert items.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithIdentity(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithIdentityColumn), lang);
-        //     // Identity column (ProductId) is left out for new items
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         { "name", "MyProduct" },
-        //         { "cost", "1" }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     this.SendOutputGetRequest(nameof(AddProductWithIdentityColumn), query).Wait();
-        //     // Product should have been inserted correctly even without an ID when there's an identity column present
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        // }
+        /// <summary>
+        /// Tests that for tables with an identity column we are able to insert items.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithIdentity(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductWithIdentityColumn), lang);
+            // Identity column (ProductId) is left out for new items
+            var query = new Dictionary<string, string>()
+            {
+                { "name", "MyProduct" },
+                { "cost", "1" }
+            };
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            this.SendOutputGetRequest(nameof(AddProductWithIdentityColumn), query).Wait();
+            // Product should have been inserted correctly even without an ID when there's an identity column present
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+        }
 
-        // /// <summary>
-        // /// Tests that for tables with an identity column we are able to insert multiple items at once
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductsWithIdentityColumnArray(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductsWithIdentityColumnArray), lang);
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     this.SendOutputGetRequest(nameof(AddProductsWithIdentityColumnArray)).Wait();
-        //     // Multiple items should have been inserted
-        //     Assert.Equal(2, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        // }
+        /// <summary>
+        /// Tests that for tables with an identity column we are able to insert multiple items at once
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductsWithIdentityColumnArray(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductsWithIdentityColumnArray), lang);
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            this.SendOutputGetRequest(nameof(AddProductsWithIdentityColumnArray)).Wait();
+            // Multiple items should have been inserted
+            Assert.Equal(2, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+        }
 
-        // /// <summary>
-        // /// Tests that for tables with multiple primary columns (including an identity column) we are able to
-        // /// insert items.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithIdentity_MultiplePrimaryColumns(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), lang);
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         { "externalId", "101" },
-        //         { "name", "MyProduct" },
-        //         { "cost", "1" }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithMultiplePrimaryColumnsAndIdentity"));
-        //     this.SendOutputGetRequest(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), query).Wait();
-        //     // Product should have been inserted correctly even without an ID when there's an identity column present
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithMultiplePrimaryColumnsAndIdentity"));
-        // }
+        /// <summary>
+        /// Tests that for tables with multiple primary columns (including an identity column) we are able to
+        /// insert items.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithIdentity_MultiplePrimaryColumns(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), lang);
+            var query = new Dictionary<string, string>()
+            {
+                { "externalId", "101" },
+                { "name", "MyProduct" },
+                { "cost", "1" }
+            };
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithMultiplePrimaryColumnsAndIdentity"));
+            this.SendOutputGetRequest(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), query).Wait();
+            // Product should have been inserted correctly even without an ID when there's an identity column present
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithMultiplePrimaryColumnsAndIdentity"));
+        }
 
-        // /// <summary>
-        // /// Tests that when using a table with an identity column that if the identity column is specified
-        // /// by the function we handle inserting/updating that correctly.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithIdentity_SpecifyIdentityColumn(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithIdentityColumnIncluded), lang);
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         { "productId", "1" },
-        //         { "name", "MyProduct" },
-        //         { "cost", "1" }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
-        //     // New row should have been inserted
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     query = new Dictionary<string, string>()
-        //     {
-        //         { "productId", "1" },
-        //         { "name", "MyProduct2" },
-        //         { "cost", "1" }
-        //     };
-        //     this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
-        //     // Existing row should have been updated
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity WHERE Name='MyProduct2'"));
-        // }
+        /// <summary>
+        /// Tests that when using a table with an identity column that if the identity column is specified
+        /// by the function we handle inserting/updating that correctly.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithIdentity_SpecifyIdentityColumn(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductWithIdentityColumnIncluded), lang);
+            var query = new Dictionary<string, string>()
+            {
+                { "productId", "1" },
+                { "name", "MyProduct" },
+                { "cost", "1" }
+            };
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
+            // New row should have been inserted
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            query = new Dictionary<string, string>()
+            {
+                { "productId", "1" },
+                { "name", "MyProduct2" },
+                { "cost", "1" }
+            };
+            this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
+            // Existing row should have been updated
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity WHERE \"Name\"='MyProduct2'"));
+        }
 
-        // /// <summary>
-        // /// Tests that when using a table with an identity column we can handle a null (missing) identity column
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithIdentity_NoIdentityColumn(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithIdentityColumnIncluded), lang);
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         { "name", "MyProduct" },
-        //         { "cost", "1" }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
-        //     // New row should have been inserted
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        //     query = new Dictionary<string, string>()
-        //     {
-        //         { "name", "MyProduct2" },
-        //         { "cost", "1" }
-        //     };
-        //     this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait();
-        //     // Another new row should have been inserted
-        //     Assert.Equal(2, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithIdentity"));
-        // }
+        /// <summary>
+        /// Tests that when using a table with an identity column we can handle a null (missing) identity column
+        /// an error should be thrown because null was specified for the (non null) identity column.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithIdentity_NoIdentityColumn(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductWithIdentityColumnIncluded), lang);
+            var query = new Dictionary<string, string>()
+            {
+                { "name", "MyProduct" },
+                { "cost", "1" }
+            };
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+            Assert.Throws<AggregateException>(() => this.SendOutputGetRequest(nameof(AddProductWithIdentityColumnIncluded), query).Wait());
 
-        // /// <summary>
-        // /// Tests that when using a table with an identity column along with other primary
-        // /// keys an error is thrown if at least one of the primary keys is missing.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithIdentity_MissingPrimaryColumn(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), lang);
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         // Missing externalId
-        //         { "name", "MyProduct" },
-        //         { "cost", "1" }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithMultiplePrimaryColumnsAndIdentity"));
-        //     Assert.Throws<AggregateException>(() => this.SendOutputGetRequest(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), query).Wait());
-        //     // Nothing should have been inserted
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithMultiplePrimaryColumnsAndIdentity"));
-        // }
+            // No rows should have been inserted
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithIdentity"));
+        }
 
-        // /// <summary>
-        // /// Tests that a row is inserted successfully when the object is missing
-        // /// the primary key column with a default value.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithDefaultPKTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductWithDefaultPK), lang);
-        //     var product = new Dictionary<string, object>()
-        //     {
-        //         { "Name", "MyProduct" },
-        //         { "Cost", 1 }
-        //     };
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithDefaultPK"));
-        //     this.SendOutputPostRequest("addproductwithdefaultpk", Utils.JsonSerializeObject(product)).Wait();
-        //     this.SendOutputPostRequest("addproductwithdefaultpk", Utils.JsonSerializeObject(product)).Wait();
-        //     Assert.Equal(2, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithDefaultPK"));
-        // }
+        /// <summary>
+        /// Tests that when using a table with an identity column along with other primary
+        /// keys an error is thrown if at least one of the primary keys is missing.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithIdentity_MissingPrimaryColumn(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), lang);
+            var query = new Dictionary<string, string>()
+            {
+                // Missing externalId
+                { "name", "MyProduct" },
+                { "cost", "1" }
+            };
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithMultiplePrimaryColumnsAndIdentity"));
+            Assert.Throws<AggregateException>(() => this.SendOutputGetRequest(nameof(AddProductWithMultiplePrimaryColumnsAndIdentity), query).Wait());
+            // Nothing should have been inserted
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM ProductsWithMultiplePrimaryColumnsAndIdentity"));
+        }
 
-        // /// <summary>
-        // /// Tests that when using an unsupported database the expected error is thrown
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // [UnsupportedLanguages(SupportedLanguages.OutOfProc)]
-        // public async Task UnsupportedDatabaseThrows(SupportedLanguages lang)
-        // {
-        //     // Change database compat level to unsupported version
-        //     this.ExecuteNonQuery($"ALTER DATABASE {this.DatabaseName} SET COMPATIBILITY_LEVEL = 120;");
+        /// <summary>
+        /// Tests that an error is thrown when the object field names and table column names do not match.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductIncorrectCasing(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductIncorrectCasing), lang);
 
-        //     var foundExpectedMessageSource = new TaskCompletionSource<bool>();
-        //     this.StartFunctionHost(nameof(AddProductParams), lang, false, (object sender, DataReceivedEventArgs e) =>
-        //     {
-        //         if (e.Data.Contains("PostgreSql bindings require a database compatibility level of 130 or higher to function. Current compatibility level = 120"))
-        //         {
-        //             foundExpectedMessageSource.SetResult(true);
-        //         }
-        //     });
+            Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-incorrectcasing").Wait());
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
+        }
 
-        //     var query = new Dictionary<string, string>()
-        //     {
-        //         { "productId", "1" },
-        //         { "name", "test" },
-        //         { "cost", "100" }
-        //     };
+        /// <summary>
+        /// Tests that subsequent upserts work correctly when the object properties are different from the first upsert.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductWithDifferentPropertiesTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProduct), lang);
 
-        //     // The upsert should fail since the database compat level is not supported
-        //     Exception exception = Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-params", query).Wait());
-        //     // Verify the message contains the expected error so that other errors don't mistakenly make this test pass
-        //     // Wait 2sec for message to get processed to account for delays reading output
-        //     await foundExpectedMessageSource.Task.TimeoutAfter(TimeSpan.FromMilliseconds(2000), $"Timed out waiting for expected error message");
-        // }
+            var query1 = new Dictionary<string, object>()
+            {
+                { "ProductId", 0 },
+                { "Name", "test" },
+                { "Cost", 100 }
+            };
 
-        // /// <summary>
-        // /// Tests that upserting to a case sensitive database works correctly.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductToCaseSensitiveDatabase(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProduct), lang);
+            var query2 = new Dictionary<string, object>()
+            {
+                { "ProductId", 0 },
+                { "Name", "test2" }
+            };
 
-        //     // Change database collation to case sensitive
-        //     this.ExecuteNonQuery($"ALTER DATABASE {this.DatabaseName} SET Single_User WITH ROLLBACK IMMEDIATE; ALTER DATABASE {this.DatabaseName} COLLATE Latin1_General_CS_AS; ALTER DATABASE {this.DatabaseName} SET Multi_User;");
+            this.SendOutputPostRequest("addproduct", Utils.JsonSerializeObject(query1)).Wait();
+            this.SendOutputPostRequest("addproduct", Utils.JsonSerializeObject(query2)).Wait();
 
-        //     var query = new Dictionary<string, object>()
-        //     {
-        //         { "ProductId", 0 },
-        //         { "Name", "test" },
-        //         { "Cost", 100 }
-        //     };
+            // Verify result
+            Assert.Equal("test2", this.ExecuteScalar($"select \"Name\" from Products where \"ProductId\"=0"));
+        }
 
-        //     this.SendOutputPostRequest("addproduct", Utils.JsonSerializeObject(query)).Wait();
+        /// <summary>
+        /// Tests that when upserting an item with no properties, an error is thrown.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        // Only the JavaScript function passes an empty JSON to the PostgreSql extension.
+        // C# throws an error while creating the Product object in the function.
+        [UnsupportedLanguages(SupportedLanguages.CSharp)]
+        public async Task NoPropertiesThrows(SupportedLanguages lang)
+        {
+            var foundExpectedMessageSource = new TaskCompletionSource<bool>();
+            this.StartFunctionHost(nameof(AddProductParams), lang, false, (object sender, DataReceivedEventArgs e) =>
+            {
+                if (e.Data.Contains("No property values found in item to upsert. If using query parameters, ensure that the casing of the parameter names and the property names match."))
+                {
+                    if (!foundExpectedMessageSource.Task.IsCompleted)
+                    {
+                        foundExpectedMessageSource.SetResult(true);
+                    }
+                }
 
-        //     // Verify result
-        //     Assert.Equal("test", this.ExecuteScalar($"select Name from Products where ProductId=0"));
-        //     Assert.Equal(100, this.ExecuteScalar($"select Cost from Products where ProductId=0"));
+            });
 
-        //     // Change database collation back to case insensitive
-        //     this.ExecuteNonQuery($"ALTER DATABASE {this.DatabaseName} SET Single_User WITH ROLLBACK IMMEDIATE; ALTER DATABASE {this.DatabaseName} COLLATE Latin1_General_CI_AS; ALTER DATABASE {this.DatabaseName} SET Multi_User;");
-        // }
+            var query = new Dictionary<string, string>() { };
 
-        // /// <summary>
-        // /// Tests that an error is thrown when the object field names and table column names do not match.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductIncorrectCasing(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductIncorrectCasing), lang);
+            // The upsert should fail since no parameters were passed
+            Exception exception = Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-params", query).Wait());
+            // Verify the message contains the expected error so that other errors don't mistakenly make this test pass
+            // Wait 2sec for message to get processed to account for delays reading output
+            await foundExpectedMessageSource.Task.TimeoutAfter(TimeSpan.FromMilliseconds(2000), $"Timed out waiting for expected error message");
+        }
 
-        //     Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-incorrectcasing").Wait());
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
-        // }
+        /// <summary>
+        /// Tests that rows are inserted correctly when the table contains default values or identity columns even if the order of
+        /// the properties in the POCO/JSON object is different from the order of the columns in the table.
+        /// </summary>
+        [Theory]
+        [PostgreSqlInlineData()]
+        [Trait("Category", "Integration")]
+        [Trait("Binding", "Output")]
+        public void AddProductDifferentColumnOrderTest(SupportedLanguages lang)
+        {
+            this.StartFunctionHost(nameof(AddProductDifferentColumnOrder), lang, true);
 
-        // /// <summary>
-        // /// Tests that subsequent upserts work correctly when the object properties are different from the first upsert.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductWithDifferentPropertiesTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProduct), lang);
-
-        //     var query1 = new Dictionary<string, object>()
-        //     {
-        //         { "ProductId", 0 },
-        //         { "Name", "test" },
-        //         { "Cost", 100 }
-        //     };
-
-        //     var query2 = new Dictionary<string, object>()
-        //     {
-        //         { "ProductId", 0 },
-        //         { "Name", "test2" }
-        //     };
-
-        //     this.SendOutputPostRequest("addproduct", Utils.JsonSerializeObject(query1)).Wait();
-        //     this.SendOutputPostRequest("addproduct", Utils.JsonSerializeObject(query2)).Wait();
-
-        //     // Verify result
-        //     Assert.Equal("test2", this.ExecuteScalar($"select Name from Products where ProductId=0"));
-        // }
-
-        // /// <summary>
-        // /// Tests that when upserting an item with no properties, an error is thrown.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // // Only the JavaScript function passes an empty JSON to the PostgreSql extension.
-        // // C#, Java, and Python throw an error while creating the Product object in the function and in PowerShell,
-        // // the JSON would be passed as {"ProductId": null, "Name": null, "Cost": null}.
-        // [UnsupportedLanguages(SupportedLanguages.CSharp, SupportedLanguages.Java, SupportedLanguages.OutOfProc, SupportedLanguages.PowerShell, SupportedLanguages.Python, SupportedLanguages.Csx)]
-        // public async Task NoPropertiesThrows(SupportedLanguages lang)
-        // {
-        //     var foundExpectedMessageSource = new TaskCompletionSource<bool>();
-        //     this.StartFunctionHost(nameof(AddProductParams), lang, false, (object sender, DataReceivedEventArgs e) =>
-        //     {
-        //         if (e.Data.Contains("No property values found in item to upsert. If using query parameters, ensure that the casing of the parameter names and the property names match."))
-        //         {
-        //             foundExpectedMessageSource.SetResult(true);
-        //         }
-        //     });
-
-        //     var query = new Dictionary<string, string>() { };
-
-        //     // The upsert should fail since no parameters were passed
-        //     Exception exception = Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-params", query).Wait());
-        //     // Verify the message contains the expected error so that other errors don't mistakenly make this test pass
-        //     // Wait 2sec for message to get processed to account for delays reading output
-        //     await foundExpectedMessageSource.Task.TimeoutAfter(TimeSpan.FromMilliseconds(2000), $"Timed out waiting for expected error message");
-        // }
-
-        // /// <summary>
-        // /// Tests that an error is thrown when the upserted item contains a unsupported column type.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // [UnsupportedLanguages(SupportedLanguages.OutOfProc)]
-        // public async Task AddProductUnsupportedTypesTest(SupportedLanguages lang)
-        // {
-        //     var foundExpectedMessageSource = new TaskCompletionSource<bool>();
-        //     this.StartFunctionHost(nameof(AddProductUnsupportedTypes), lang, true, (object sender, DataReceivedEventArgs e) =>
-        //     {
-        //         if (e.Data.Contains("The type(s) of the following column(s) are not supported: TextCol, NtextCol, ImageCol. See https://github.com/Azure/azure-functions-PostgreSql-extension#output-bindings for more details."))
-        //         {
-        //             foundExpectedMessageSource.SetResult(true);
-        //         }
-        //     });
-
-        //     Assert.Throws<AggregateException>(() => this.SendOutputGetRequest("addproduct-unsupportedtypes").Wait());
-        //     await foundExpectedMessageSource.Task.TimeoutAfter(TimeSpan.FromMilliseconds(2000), $"Timed out waiting for expected error message");
-        // }
-
-        // /// <summary>
-        // /// Tests that rows are inserted correctly when the table contains default values or identity columns even if the order of
-        // /// the properties in the POCO/JSON object is different from the order of the columns in the table.
-        // /// </summary>
-        // [Theory]
-        // [PostgreSqlInlineData()]
-        // public void AddProductDefaultPKAndDifferentColumnOrderTest(SupportedLanguages lang)
-        // {
-        //     this.StartFunctionHost(nameof(AddProductDefaultPKAndDifferentColumnOrder), lang, true);
-
-        //     Assert.Equal(0, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithDefaultPK"));
-        //     this.SendOutputGetRequest("addproductdefaultpkanddifferentcolumnorder").Wait();
-        //     Assert.Equal(1, this.ExecuteScalar("SELECT COUNT(*) FROM dbo.ProductsWithDefaultPK"));
-        // }
+            Assert.Equal(0, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
+            this.SendOutputGetRequest("addproductdifferentcolumnorder").Wait();
+            Assert.Equal(1, (int)(long)this.ExecuteScalar("SELECT COUNT(*) FROM Products"));
+        }
     }
 }
