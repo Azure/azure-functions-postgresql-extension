@@ -21,17 +21,21 @@ Our integration tests are based on functions from the samples project. To run in
    ```
 
 3. A PostgreSql Server instance - This is used by tests to verify that data is correctly added/fetched from the database when a test Function is run. You just need the server to be up and running, the tests will create the database and tables which will be cleaned up afterwards.
-4. A `test.settings.json` file - This is used to store the connection string to the PostgreSql Server instance. This file should be placed in the `test` folder and should look like this:
+4. A `test.settings.json` file - This is used to store connection configuration to the PostgreSql Server instance. This file should be placed in the `test` folder and should be in this format:
 
-   ```json
-   {
-     "PostgreSqlConnectionString": "<connection string>"
-   }
-   ```
+```json
+{
+  "host": "localhost",
+  "port": "5432",
+  "database": "postgres",
+  "username": "postgres",
+  "password": ""
+}
+```
 
-   Replace the values in the connection string with the values for your PostgreSql Server instance.
+Replace the values with the correct values for your PostgreSql Server instance.
 
-   **Note:** This file is already in the `.gitignore` file so it will not be checked in to source control.
+**Note:** This file is in the `.gitignore` file but is tracked by git so that the template is available for anyone who clones the repo. Make sure to run something like `git update-index --assume-unchanged test.settings.json` to prevent your changes from being tracked.
 
 ### Running Tests By Trait
 
