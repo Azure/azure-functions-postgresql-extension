@@ -1,0 +1,23 @@
+{
+  "bindings": [
+    {
+      "schedule": "*/5 * * * * *",
+      "name": "myTimer",
+      "type": "timerTrigger",
+      "direction": "in"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "products",
+      "type": "postgresql",
+      "direction": "out",
+      "commandText": "Products",
+      "connectionStringSetting": "PostgreSqlConnectionString"
+    }
+  ],
+  "disabled": false
+}

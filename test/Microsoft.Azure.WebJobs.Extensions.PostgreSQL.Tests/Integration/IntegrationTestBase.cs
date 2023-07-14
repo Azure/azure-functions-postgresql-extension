@@ -90,16 +90,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
 
         private void SetupDatabase()
         {
-            NpgsqlConnectionStringBuilder connectionStringBuilder;
+            NpgsqlConnectionStringBuilder connectionStringBuilder = new();
             string json;
             try
             {
-                // Read the connection string from test.settings.json
+                // open test.settings.json
                 json = File.ReadAllText("./test.settings.json");
             }
             catch (FileNotFoundException)
             {
-                throw new FileNotFoundException("test.settings.json not found. Please create a test.settings.json file in the test project root with the following contents:\n{\n  \"PostgreSqlConnectionString\": \"<your connection string>\"\n}");
+                throw new FileNotFoundException("test.settings.json not found. Please create a test.settings.json file in the test project root with the following contents: \n{\n    \"host\": \"<your host>\",\n    \"port\": \"<your port>\",\n    \"database\": \"<your database>\",\n    \"username\": \"<your username>\",\n    \"password\": \"<your password>\"\n}", "./test.settings.json");
             }
             JObject settings;
             try
@@ -110,26 +110,20 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
             {
                 throw new Exception("test.settings.json is not valid JSON. Please make sure it is valid JSON and try again.", e);
             }
-            string connectionString;
             try
             {
-                connectionString = (string)settings["PostgreSqlConnectionString"];
+                connectionStringBuilder.Host = (string)settings["host"];
+                connectionStringBuilder.Port = int.Parse((string)settings["port"]);
+                connectionStringBuilder.Database = (string)settings["database"];
+                connectionStringBuilder.Username = (string)settings["username"];
+                connectionStringBuilder.Password = (string)settings["password"];
             }
             catch (Exception e)
             {
-                throw new Exception("test.settings.json does not contain a PostgreSqlConnectionString property. Please add one and try again.", e);
+                throw new Exception("test.settings.json is missing one or more required properties. Please make sure it has the following properties and try again:\nhost\nport\ndatabase\nusername\npassword", e);
             }
 
-
-            if (connectionString != null)
-            {
-                this.MasterConnectionString = connectionString;
-                connectionStringBuilder = new NpgsqlConnectionStringBuilder(connectionString);
-            }
-            else
-            {
-                throw new InvalidOperationException("PostgreSqlConnectionString in local.settings.json must be set to a valid PostgreSql connection string.");
-            }
+            this.MasterConnectionString = connectionStringBuilder.ToString();
 
             // Create database
             // Retry this in case the server isn't fully initialized yet

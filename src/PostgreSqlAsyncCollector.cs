@@ -18,6 +18,7 @@ using MoreLinq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Npgsql;
+using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlBindingConstants;
 using static Microsoft.Azure.WebJobs.Extensions.PostgreSql.PostgreSqlConverters;
 
 namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
@@ -40,6 +41,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
         private string[] primaryKeys;
         private DateTime lastRetrievedColumns = DateTime.MinValue;
+
+        private JsonSerializerSettings serializerSettings;
 
         private string fullCommandText;
 
@@ -84,6 +87,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
 
             // make sure that the table is sanitized, if not throw error
             VerifyCleanTableName(attribute.CommandText);
+
+            this.serializerSettings = new JsonSerializerSettings()
+            {
+                DateFormatString = ISO8061DATETIMEFORMAT,
+            };
         }
 
         /// <summary>
@@ -99,6 +107,24 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             {
                 throw new ArgumentException("The table name contains invalid characters. Only alphanumeric, underscores, and periods are allowed.");
             }
+        }
+
+        /// <summary>
+        /// Gets the column names from PropertyInfo when T is POCO
+        /// and when T is JObject, parses the data to get column names.
+        /// </summary>
+        /// <param name="row"> Sample row used to get the column names when item is a JObject.</param>
+        /// <returns>List of column names in the table.</returns>
+        public static IEnumerable<string> GetColumnNamesFromItem(T row)
+        {
+            if (typeof(T) == typeof(JObject))
+            {
+                var jsonObj = JObject.Parse(row.ToString());
+                Dictionary<string, object> dictObj = jsonObj.ToObject<Dictionary<string, object>>();
+                return dictObj.Keys;
+            }
+
+            return typeof(T).GetProperties().Select(prop => prop.Name);
         }
 
         /// <summary>
@@ -168,31 +194,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// </summary>
         /// <param name="batch">Batch of rows to be upserted.</param>
         /// <returns>A NpgsqlParameter.</returns>
-        private static NpgsqlParameter CreateBatchValueParameter(IEnumerable<T> batch)
+        private NpgsqlParameter CreateBatchValueParameter(IEnumerable<T> batch)
         {
-            string batchJsonData = Utils.JsonSerializeObject(batch);
+            string batchJsonData = Utils.JsonSerializeObject(batch, this.serializerSettings);
 
             Console.WriteLine("@jsonData Param Value:\n" + batchJsonData);
 
             return new NpgsqlParameter("@jsonData", batchJsonData);
-        }
-
-        /// <summary>
-        /// Gets the column names from PropertyInfo when T is POCO
-        /// and when T is JObject, parses the data to get column names.
-        /// </summary>
-        /// <param name="row"> Sample row used to get the column names when item is a JObject.</param>
-        /// <returns>List of column names in the table.</returns>
-        private static IEnumerable<string> GetColumnNamesFromItem(T row)
-        {
-            if (typeof(T) == typeof(JObject))
-            {
-                var jsonObj = JObject.Parse(row.ToString());
-                Dictionary<string, string> dictObj = jsonObj.ToObject<Dictionary<string, string>>();
-                return dictObj.Keys;
-            }
-
-            return typeof(T).GetProperties().Select(prop => prop.Name);
         }
 
         /// <summary>
@@ -258,8 +266,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
             // table name is the full command text
             string fullTableName = attribute.CommandText;
 
+            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(this.rows.First());
+            IEnumerable<Column> filteredColumns = this.columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
+            if (!filteredColumns.Any())
+            {
+                string message = $"No property values found in item to upsert. If using query parameters, ensure that the casing of the parameter names and the property names match.";
+                var ex = new InvalidOperationException(message);
+                throw ex;
+            }
+
             // create a command text for the full batch if it doesn't exist
-            this.fullCommandText ??= this.GenerateInsertText(fullTableName, this.columns, this.rows.First());
+            this.fullCommandText ??= this.GenerateInsertText(fullTableName, filteredColumns);
 
             Console.WriteLine("Full Command Text:\n" + this.fullCommandText);
 
@@ -276,7 +293,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
                 {
                     // insert the parameters into the command and execute
                     command.Parameters.Clear();
-                    command.Parameters.Add(CreateBatchValueParameter(batch));
+                    command.Parameters.Add(this.CreateBatchValueParameter(batch));
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -299,13 +316,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql
         /// Creates the insert text for json to be inserted into a table.
         /// </summary>
         /// <param name="fullTableName">Full name of the table.</param>
-        /// <param name="columns">Columns of the table.</param>
-        /// <param name="row">Sample row used to get the column names of the actual data being sent.</param>
+        /// <param name="filteredColumns">Columns in the table that are also included in the item.</param>
         /// <returns>Insert text.</returns>
-        private string GenerateInsertText(string fullTableName, IEnumerable<Column> columns, T row)
+        private string GenerateInsertText(string fullTableName, IEnumerable<Column> filteredColumns)
         {
-            IEnumerable<string> columnNamesFromItem = GetColumnNamesFromItem(row);
-            IEnumerable<Column> filteredColumns = columns.Where(c => columnNamesFromItem.Contains(c.ColumnName));
             string csColumnNameTypes = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\" {c.DataType}"));
             string csColumnNames = string.Join(", ", filteredColumns.Select(c => $"\"{c.ColumnName}\""));
             string csPrimaryKeyColumns = string.Join(", ", this.primaryKeys.Select(c => $"\"{c}\""));

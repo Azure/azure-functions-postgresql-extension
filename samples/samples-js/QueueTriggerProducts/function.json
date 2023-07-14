@@ -1,0 +1,23 @@
+{
+  "bindings": [
+    {
+      "type": "queueTrigger",
+      "direction": "in",
+      "name": "queueMessage",
+      "queueName": "testqueue"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "products",
+      "type": "postgresql",
+      "direction": "out",
+      "commandText": "Products",
+      "connectionStringSetting": "PostgreSqlConnectionString"
+    }
+  ],
+  "disabled": false
+}

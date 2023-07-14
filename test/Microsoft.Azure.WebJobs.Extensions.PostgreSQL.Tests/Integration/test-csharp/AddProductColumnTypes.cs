@@ -25,17 +25,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
         [FunctionName(nameof(AddProductColumnTypes))]
         public static IActionResult Run(
                 [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "addproduct-columntypes")] HttpRequest req,
-                [PostgreSql("public.ProductsColumnTypes", "PostgreSqlConnectionString")] out ProductColumnTypes product)
+                [PostgreSql("ProductsColumnTypes", "PostgreSqlConnectionString")] out ProductColumnTypes product)
         {
             product = new ProductColumnTypes()
             {
                 ProductId = int.Parse(req.Query["productId"]),
                 Bigint = long.MaxValue,
-                Bigserial = BigInteger.Parse("99999999999999999999999999999999999999999999"),
-                Bit = true,
-                BitVarying = new BitArray(new[] { true, false, true, false, true, false, true, false, true, false }),
+                Bigserial = long.MaxValue,
+                Bit = 1,
+                BitVarying = "010011",
                 Boolean = true,
-                Bytea = new byte[] { 0x01, 0x02, 0x03 },
+                Bytea = new byte[] { 0x01, 0x02, 0x03, 0x04 },
                 Character = "testCharacter",
                 CharacterVarying = "testCharacterVarying",
                 Date = DateTime.Now,
@@ -51,9 +51,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.PostgreSql.Tests.Integration
                 Serial = int.MaxValue,
                 Text = "testText",
                 Time = DateTime.Now.TimeOfDay,
-                TimeWithTimeZone = DateTimeOffset.Now,
                 Timestamp = DateTime.Now,
-                TimestampWithTimeZone = DateTimeOffset.Now,
                 Uuid = Guid.NewGuid()
             };
 
