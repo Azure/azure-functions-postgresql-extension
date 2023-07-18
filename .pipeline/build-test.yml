@@ -1,0 +1,30 @@
+trigger: none
+pr: none
+pool:
+  vmImage: windows-latest
+
+steps:
+  - checkout: self
+  - template: templates/setup-postgresql.yml
+  - script: npm install -g azure-functions-core-tools
+    displayName: "Install Azure Functions Core Tools"
+  - script: npm install -g azurite
+    displayName: "Install Azurite Local Storage Emulator"
+  - bash: echo "##vso[task.setvariable variable=azureFunctionsExtensionBundlePath]$(func GetExtensionBundlePath)"
+    displayName: "Set Azure Functions extension bundle path"
+    workingDirectory: $(Build.SourcesDirectory)/samples/samples-js
+  # grab bundle here and swap it out with the one from func GetExtensionBundlePath
+  - task: PowerShell@2
+    displayName: Run Tests
+    inputs:
+      targetType: filePath
+      filePath: ./scripts/test-all.ps1
+      errorActionPreference: default
+    continueOnError: true
+  - task: PublishTestResults@2
+    displayName: Publish test results **/*.trx
+    inputs:
+      testResultsFormat: "VSTest"
+      testResultsFiles: "**/*.trx"
+      mergeTestResults: true
+      failTaskOnFailedTests: true
