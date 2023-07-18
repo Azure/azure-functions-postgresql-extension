@@ -21,17 +21,21 @@ Our integration tests are based on functions from the samples project. To run in
    ```
 
 3. A PostgreSql Server instance - This is used by tests to verify that data is correctly added/fetched from the database when a test Function is run. You just need the server to be up and running, the tests will create the database and tables which will be cleaned up afterwards.
-4. A `test.settings.json` file - This is used to store the connection string to the PostgreSql Server instance. This file should be placed in the `test` folder and should look like this:
+4. A `test.settings.json` file - This is used to store connection configuration to the PostgreSql Server instance. This file should be placed in the `test` folder and should be in this format:
 
-   ```json
-   {
-     "PostgreSqlConnectionString": "<connection string>"
-   }
-   ```
+```json
+{
+  "host": "localhost",
+  "port": "5432",
+  "database": "postgres",
+  "username": "postgres",
+  "password": ""
+}
+```
 
-   Replace the values in the connection string with the values for your PostgreSql Server instance.
+Replace the values with the correct values for your PostgreSql Server instance.
 
-   **Note:** This file is already in the `.gitignore` file so it will not be checked in to source control.
+**Note:** This file is in the `.gitignore` file but is tracked by git so that the template is available for anyone who clones the repo. Make sure to run something like `git update-index --assume-unchanged test.settings.json` to prevent your changes from being tracked.
 
 ### Running Tests By Trait
 
@@ -57,7 +61,7 @@ When adding a new integration test for a function follow these steps:
 1.  First decide where the function being used for the test is going to go. If this is demonstrating valid functionality that customers may find useful then it should go under the samples folder. If it is demonstrating an error case or something similar then it should go under the test/Integration folder
 2.  Within either of those folders are a number of sub-folders with the name samples-\<language> or test-\<language>. You will need to make a version of the function for each of the currently supported languages - skipping any that don't apply to your sample (for example if you're verifying a language feature that only exists in one particular language.) These functions should all be functionally identical - given the same input they should return the same output
 3.  The function should have the FunctionName be the same as the class name
-4.  After the functions are created then add the test itself to either SqlInputBindingIntegrationTests.ts or SqlOutputBindingIntegrationTests.ts. See below for the various attributes, parameters and setup that are required for each test
+4.  After the functions are created then add the test itself to either `PostgreSqlInputBindingIntegrationTests.cs` or `PostgreSqlOutputBindingIntegrationTests.cs`. See below for the various attributes, parameters and setup that are required for each test
 
 ### PostgreSqlInlineData attribute:
 
@@ -108,6 +112,16 @@ Use [UnsupportedLanguages] attribute over the test to specify the list of langua
          // test code here
      }
 ```
+
+### Optionally Add Traits
+
+You may want to add traits to categorize tests. For example, if you're adding a test for an input binding, you can add `[Trait("Binding", "Input")]` the test. This will allow you to run all input binding tests by running the following command:
+
+```bash
+dotnet test --filter "Binding=Input"
+```
+
+**Note:** Multiple traits may be added to a test.
 
 ## Troubleshooting Test Failures
 

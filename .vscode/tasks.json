@@ -82,7 +82,7 @@
       "type": "func",
       "dependsOn": "build (functions)",
       "options": {
-        "cwd": "${workspaceFolder}/samples\\samples-csharp/bin/Debug/net6.0"
+        "cwd": "${workspaceFolder}/samples\\samples-csharp/bin/Debug/net6"
       },
       "command": "host start",
       "isBackground": true,
